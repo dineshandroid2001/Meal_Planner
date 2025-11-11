@@ -20,6 +20,9 @@ export default function DashboardSummary() {
     const participantsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `monthlyPlans/${monthId}/participations`) : null, [firestore, monthId]);
     const { data: participantsData, isLoading: areParticipantsLoading } = useCollection<Participant>(participantsCollectionRef);
     
+    const roommatesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, 'roommates') : null, [firestore]);
+    const { data: allRoommates, isLoading: areRoommatesLoading } = useCollection<{id: string}>(roommatesCollectionRef);
+    
     const reimbursementsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, 'reimbursements') : null, [firestore]);
     const { data: reimbursementsData, isLoading: areReimbursementsLoading } = useCollection<ReimbursementRequest>(reimbursementsCollectionRef);
 
@@ -35,81 +38,114 @@ export default function DashboardSummary() {
         }, { totalPendingReimbursements: 0, totalApprovedReimbursements: 0 });
     }, [reimbursementsData]);
 
-    const grossAllocatedCost = useMemo(() => {
-        if (!participantsData || !monthlyPlan) return 0;
-        const costPerDay = (monthlyPlan.monthlyExpense || 0) / 30;
-        return participantsData.reduce((acc, p) => acc + (p.days * costPerDay), 0);
-    }, [participantsData, monthlyPlan]);
+    const fullMonthPerHeadAmount = useMemo(() => {
+        if (!monthlyPlan) return 0;
+        return monthlyPlan.monthlyExpense || 0;
+    }, [monthlyPlan]);
 
-    const netAllocatedCost = useMemo(() => {
-        return grossAllocatedCost - totalApprovedReimbursements;
-    }, [grossAllocatedCost, totalApprovedReimbursements]);
+    const totalCollectedAmount = useMemo(() => {
+        if (!participantsData || !monthlyPlan || !allRoommates) return 0;
+        const costPerDay = (monthlyPlan.monthlyExpense || 0) / 30;
+        
+        // Create a Set of valid roommate IDs for fast lookup
+        const validRoommateIds = new Set(allRoommates.map(r => r.id));
+        
+        console.log('=== Total Collected Amount Calculation ===');
+        console.log('Monthly Expense:', monthlyPlan.monthlyExpense);
+        console.log('Cost Per Day:', costPerDay);
+        console.log('Valid Roommate IDs:', Array.from(validRoommateIds));
+        console.log('Number of participants:', participantsData.length);
+        
+        // Only count participants who are in the roommates collection
+        const total = participantsData
+            .filter(p => {
+                const isValid = p.id && validRoommateIds.has(p.id) && p.days !== undefined && p.days !== null;
+                if (p.id && !validRoommateIds.has(p.id)) {
+                    console.log(`⚠️ Skipping participant ${p.id}: Not in roommates collection`);
+                }
+                return isValid;
+            })
+            .reduce((acc, p) => {
+                const cost = p.days * costPerDay;
+                console.log(`✓ Participant ${p.id}: ${p.days} days × ₹${costPerDay.toFixed(2)} = ₹${cost.toFixed(2)}`);
+                return acc + cost;
+            }, 0);
+            
+        console.log('Total Collected:', total);
+        console.log('===========================================');
+        
+        return total;
+    }, [participantsData, monthlyPlan, allRoommates]);
+
+    const balance = useMemo(() => {
+        return totalCollectedAmount - totalApprovedReimbursements;
+    }, [totalCollectedAmount, totalApprovedReimbursements]);
     
-    const isLoading = isPlanLoading || areParticipantsLoading || areReimbursementsLoading;
+    const isLoading = isPlanLoading || areParticipantsLoading || areReimbursementsLoading || areRoommatesLoading;
 
     if (isLoading) {
         return (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                <Skeleton className="h-28 w-full" />
-                <Skeleton className="h-28 w-full" />
-                <Skeleton className="h-28 w-full" />
-                <Skeleton className="h-28 w-full" />
-                <Skeleton className="h-28 w-full" />
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full" />
             </div>
         )
     }
 
 
     return (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Monthly Expense</CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                    <CardTitle className="text-sm font-medium">Full Month Per-Head Amount</CardTitle>
+                    <DollarSign className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">₹{monthlyPlan?.monthlyExpense?.toFixed(2) ?? '0.00'}</div>
-                    <p className="text-xs text-muted-foreground">The total budget for the current month.</p>
+                    <div className="text-2xl font-bold">₹{fullMonthPerHeadAmount.toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Monthly expense set by admin.</p>
                 </CardContent>
             </Card>
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Gross Allocated Cost</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                    <CardTitle className="text-sm font-medium">Total Collected Amount</CardTitle>
+                    <Users className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">₹{grossAllocatedCost.toFixed(2)}</div>
-                    <p className="text-xs text-muted-foreground">Total to be collected before reimbursements.</p>
+                    <div className="text-2xl font-bold">₹{totalCollectedAmount.toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Sum of all participants' costs.</p>
                 </CardContent>
             </Card>
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Balance to Collect</CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">₹{netAllocatedCost.toFixed(2)}</div>
-                    <p className="text-xs text-muted-foreground">Net cost after approved reimbursements.</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Pending Reimbursements</CardTitle>
-                    <CreditCard className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                    <div className="text-2xl font-bold">₹{totalPendingReimbursements.toFixed(2)}</div>
-                    <p className="text-xs text-muted-foreground">Total amount pending for reimbursement.</p>
-                </CardContent>
-            </Card>
-            <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Approved Reimbursements</CardTitle>
-                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                    <CardTitle className="text-sm font-medium">Gross Reimbursements (Approved)</CardTitle>
+                    <CheckCircle className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">₹{totalApprovedReimbursements.toFixed(2)}</div>
-                    <p className="text-xs text-muted-foreground">Total amount already reimbursed.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Total of approved reimbursements.</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                    <CardTitle className="text-sm font-medium">Balance</CardTitle>
+                    <TrendingUp className="h-5 w-5 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">₹{balance.toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Total Collected − Reimbursements.</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+                    <CardTitle className="text-sm font-medium">Pending Reimbursements</CardTitle>
+                    <CreditCard className="h-5 w-5 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">₹{totalPendingReimbursements.toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Requests pending for approval.</p>
                 </CardContent>
             </Card>
         </div>

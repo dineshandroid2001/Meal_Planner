@@ -3,6 +3,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import type { Participant, MonthlyPlan, User } from '@/lib/types';
+import { formatINR } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -223,11 +224,17 @@ function MembersList() {
                                         </SelectContent>
                                     </Select>
                                 </TableCell>
-                                <TableCell>₹{p.cost.toFixed(2)}</TableCell>
+                                <TableCell>{formatINR(p.cost)}</TableCell>
                                 <TableCell className="hidden md:table-cell">
                                     {p.days > 0 && p.lastUpdatedAt && (
                                     <div className="flex items-center gap-2">
-                                        {format(p.lastUpdatedAt, 'PPp')}
+                                        {(() => {
+                                            if (p.lastUpdatedAt instanceof Date) return format(p.lastUpdatedAt, 'PPp');
+                                            if (typeof p.lastUpdatedAt === 'object' && p.lastUpdatedAt && 'toDate' in p.lastUpdatedAt) {
+                                                return format(p.lastUpdatedAt.toDate(), 'PPp');
+                                            }
+                                            return format(new Date(p.lastUpdatedAt as string), 'PPp');
+                                        })()}
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <Info className="h-4 w-4 text-muted-foreground" />

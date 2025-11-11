@@ -45,7 +45,7 @@ export default function DashboardLayout({
       <Sidebar />
       <div className="flex flex-col sm:pl-14">
         <Header />
-        <main className="flex-1 p-4 sm:p-6 bg-muted/40 min-h-[calc(100vh-3.5rem)]">
+        <main className="flex-1 p-3 sm:p-6 bg-muted/40 min-h-[calc(100vh-4rem)] sm:min-h-[calc(100vh-3.5rem)]">
             {children}
         </main>
       </div>
