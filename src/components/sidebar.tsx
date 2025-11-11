@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, UtensilsCrossed, Receipt, Settings } from 'lucide-react';
+import { Home, UtensilsCrossed, Receipt, Settings, History } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { useUser } from '@/firebase';
@@ -12,6 +12,7 @@ import { User } from '@/lib/types';
 const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
     { href: '/dashboard/reimbursement', label: 'Reimbursement', icon: Receipt },
+    { href: '/dashboard/history', label: 'History', icon: History },
     { href: '/dashboard/settings', label: 'Settings', icon: Settings, adminOnly: true },
 ];
 

@@ -15,6 +15,7 @@ import { User } from '@/lib/types';
 const navItems = [
     { href: '/dashboard', label: 'Dashboard' },
     { href: '/dashboard/reimbursement', label: 'Reimbursement' },
+    { href: '/dashboard/history', label: 'History' },
     { href: '/dashboard/settings', label: 'Settings', adminOnly: true },
 ];
 

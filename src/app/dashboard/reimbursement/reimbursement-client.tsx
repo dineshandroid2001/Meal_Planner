@@ -6,7 +6,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter }
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import Link from 'next/link';
 import { Textarea } from '@/components/ui/textarea';
+import { HistoryFilters, useHistoryFilters, createDefaultFilters, type FilterState } from '@/components/history-filters';
 import { useUser, useFirestore, addDocumentNonBlocking, useCollection, useMemoFirebase, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
@@ -52,6 +54,9 @@ export default function ReimbursementClient() {
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
     const [paymentFile, setPaymentFile] = useState<File | null>(null);
+    
+    // Filter state for history
+    const [filters, setFilters] = useState<FilterState>(createDefaultFilters());
 
     const reimbursementsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -67,6 +72,29 @@ export default function ReimbursementClient() {
         if (!allRoommates) return new Map();
         return new Map(allRoommates.map(r => [r.id, r.name || r.displayName || 'Unknown']));
     }, [allRoommates]);
+
+    // Prepare users data for filter component
+    const usersForFilter = useMemo(() => {
+        if (!allRoommates) return [];
+        return allRoommates.map(r => ({
+            id: r.id,
+            name: r.name || r.displayName || 'Unknown'
+        }));
+    }, [allRoommates]);
+
+    // Apply filters to reimbursements
+    const filteredReimbursements = useHistoryFilters(reimbursements || undefined, filters, roommatesMap);
+
+    // Calculate filtered stats
+    const filteredStats = useMemo(() => {
+        if (!filteredReimbursements.length) return { pending: 0, approved: 0, rejected: 0, total: 0 };
+        
+        return filteredReimbursements.reduce((acc, req) => {
+            acc[req.status] = (acc[req.status] || 0) + req.amount;
+            acc.total += req.amount;
+            return acc;
+        }, { pending: 0, approved: 0, rejected: 0, total: 0 });
+    }, [filteredReimbursements]);
 
     const reimbursementSummary = useMemo(() => {
         if (!reimbursements) return [];
@@ -133,7 +161,8 @@ export default function ReimbursementClient() {
 
             if (paymentScreenshotDataUri && paymentFile) {
                 const paymentRef = ref(storage, `reimbursements/${user.uid}/${Date.now()}_payment`);
-                const paymentUrl = await getDownloadURL(await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url'));
+                await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url');
+                const paymentUrl = await getDownloadURL(paymentRef);
                 newRequest.paymentUrl = paymentUrl;
             }
 
@@ -260,12 +289,67 @@ export default function ReimbursementClient() {
                     </CardContent>
                 </Card>
 
+                {/* Filters for History */}
+                <HistoryFilters
+                    filters={filters}
+                    onFiltersChange={setFilters}
+                    users={usersForFilter}
+                    isLoading={isLoading}
+                />
+
                 <Card>
                     <CardHeader>
-                        <CardTitle>Reimbursement History</CardTitle>
-                        <CardDescription>View the status of all reimbursement requests.</CardDescription>
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <CardTitle>Reimbursement History</CardTitle>
+                            </div>
+                            <Link href="/dashboard/history">
+                                <Button variant="outline" size="sm">
+                                    View All History
+                                </Button>
+                            </Link>
+                        </div>
+                        <CardDescription className="flex flex-col gap-1">
+                            <span>View and filter reimbursement requests. For advanced filtering and full-page history, use the dedicated History page.</span>
+                            <span className="text-sm">
+                                {filteredReimbursements.length !== reimbursements?.length ? (
+                                    <span className="text-orange-600 dark:text-orange-400">
+                                        Showing {filteredReimbursements.length} of {reimbursements?.length || 0} requests (filtered)
+                                    </span>
+                                ) : (
+                                    <span className="text-muted-foreground">
+                                        Total: {reimbursements?.length || 0} requests
+                                    </span>
+                                )}
+                            </span>
+                        </CardDescription>
                     </CardHeader>
                     <CardContent>
+                        {/* Filtered Stats Summary */}
+                        {filteredReimbursements.length > 0 && (
+                            <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+                                <div className="text-sm font-medium mb-2">Filtered Results Summary</div>
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
+                                    <div className="text-center">
+                                        <div className="text-muted-foreground">Total Amount</div>
+                                        <div className="font-semibold text-sm">₹{filteredStats.total.toFixed(2)}</div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-muted-foreground">Pending</div>
+                                        <div className="font-semibold text-sm text-yellow-600">₹{filteredStats.pending.toFixed(2)}</div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-muted-foreground">Approved</div>
+                                        <div className="font-semibold text-sm text-green-600">₹{filteredStats.approved.toFixed(2)}</div>
+                                    </div>
+                                    <div className="text-center">
+                                        <div className="text-muted-foreground">Rejected</div>
+                                        <div className="font-semibold text-sm text-red-600">₹{filteredStats.rejected.toFixed(2)}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        
                         <Table>
                             <TableHeader>
                                 <TableRow>
@@ -284,7 +368,14 @@ export default function ReimbursementClient() {
                                         </TableCell>
                                     </TableRow>
                                 )}
-                                {reimbursements?.map(req => (
+                                {!isLoading && filteredReimbursements.length === 0 && (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
+                                            {reimbursements?.length === 0 ? "No reimbursement requests found." : "No requests match your current filters."}
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                                {filteredReimbursements.map(req => (
                                     <TableRow key={req.id}>
                                         <TableCell>{roommatesMap.get(req.roommateId) || 'Unknown'}</TableCell>
                                         <TableCell>₹{req.amount.toFixed(2)}</TableCell>
