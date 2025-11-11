@@ -7,9 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from 'date-fns';
-import { useUser, useFirestore, setDocumentNonBlocking, addDocumentNonBlocking, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, setDocumentNonBlocking, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { doc, collection, getDocs, query, getDoc, Timestamp } from 'firebase/firestore';
+import { doc, collection, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Info, UserPlus } from 'lucide-react';
@@ -155,7 +155,7 @@ function MembersList() {
             
             return {
                 id: roommate.id,
-                name: roommate.displayName || roommate.name || 'Unknown',
+                name: roommate.name || roommate.displayName || 'Unknown',
                 photoURL: roommate.photoURL || null,
                 days: days,
                 cost: days * costPerDay,
@@ -202,7 +202,7 @@ function MembersList() {
             ...participantToSave,
             days: participant.days, // ensure days are saved
             lastUpdatedAt: new Date(),
-            lastUpdatedBy: user.displayName || user.email || 'Unknown User',
+            lastUpdatedBy: user.name || user.displayName || user.email || 'Unknown User',
         };
 
         setDocumentNonBlocking(participantDocRef, updatedParticipant, { merge: true });
@@ -234,6 +234,11 @@ function MembersList() {
                 ))}
             </div>
         );
+    }
+
+    const canEdit = (participantId: string) => {
+        if (!user) return false;
+        return (user as User).isAdmin || user.uid === participantId;
     }
 
     return (
@@ -271,7 +276,7 @@ function MembersList() {
                                     <Select
                                         value={String(p.days)}
                                         onValueChange={(value) => handleDaysChange(p.id, value)}
-                                        disabled={user?.uid !== p.id && !(user as User)?.isAdmin}
+                                        disabled={!canEdit(p.id)}
                                     >
                                         <SelectTrigger className="w-[120px]">
                                             <SelectValue placeholder="Select days" />
@@ -303,7 +308,7 @@ function MembersList() {
                                     <Button
                                         size="sm"
                                         onClick={() => handleSaveChanges(p)}
-                                        disabled={isSubmitting || (user?.uid !== p.id && !(user as User)?.isAdmin)}
+                                        disabled={isSubmitting || !canEdit(p.id)}
                                     >
                                         Save
                                     </Button>
@@ -320,3 +325,5 @@ function MembersList() {
 export default function MembersClient() {
     return <MembersList />;
 }
+
+    
