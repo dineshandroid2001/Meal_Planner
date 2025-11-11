@@ -16,6 +16,7 @@ export type Participant = {
   cost: number;
   lastUpdatedBy: string;
   lastUpdatedAt: Date;
+  isAdmin: boolean;
 };
 
 export type AuditLog = {
@@ -44,11 +45,10 @@ export type ReimbursementRequest = {
   receiptUrl?: string;
   paymentUrl?: string;
   status: 'pending' | 'approved' | 'rejected';
-  submittedAt: Date;
+  submittedAt: any;
   aiSummary: string;
   aiAlignment: string;
   aiDiscrepancies: string;
 };
-
 
     

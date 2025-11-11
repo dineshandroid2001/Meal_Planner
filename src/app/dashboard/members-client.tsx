@@ -7,15 +7,113 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from 'date-fns';
-import { useUser, useFirestore, setDocumentNonBlocking, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, setDocumentNonBlocking, addDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { doc, collection, getDocs, query, getDoc, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Info } from 'lucide-react';
+import { Info, UserPlus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose
+} from "@/components/ui/dialog";
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 
 const dayOptions = [0, 10, 15, 20, 30];
+
+function InviteRoommateDialog({ onInvite }: { onInvite: () => void }) {
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const [name, setName] = useState('');
+    const [email, setEmail] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isOpen, setIsOpen] = useState(false);
+
+    const handleInvite = async () => {
+        if (!name || !email || !firestore) {
+            toast({ title: "Missing fields", description: "Please enter name and email.", variant: "destructive" });
+            return;
+        }
+        setIsSubmitting(true);
+
+        // A real user ID will be created on first sign-in, for now we use email as a temporary ID
+        // but this is not secure and the user won't be able to log in.
+        // This just adds them to the list. They still need to sign up.
+        // We'll create a placeholder ID, but the user will get a real one on sign up.
+        const tempId = `placeholder_${email.replace(/[^a-zA-Z0-9]/g, '')}`;
+        const userDocRef = doc(firestore, 'roommates', tempId);
+
+        try {
+            await setDocumentNonBlocking(userDocRef, {
+                // id: tempId, // The ID is the doc name
+                name: name,
+                email: email,
+                photoURL: `https://api.dicebear.com/8.x/initials/svg?seed=${name}`,
+                isAdmin: false,
+            }, { merge: true });
+
+            toast({ title: "Roommate Invited", description: `${name} has been added. They will need to sign up with this email.` });
+            onInvite(); // Refresh the list
+            setName('');
+            setEmail('');
+            setIsOpen(false);
+        } catch (error) {
+            console.error("Error inviting roommate:", error);
+            toast({ title: "Error", description: "Could not invite roommate.", variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    return (
+        <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <DialogTrigger asChild>
+                <Button size="sm" variant="outline">
+                    <UserPlus className="mr-2 h-4 w-4" />
+                    Invite
+                </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[425px]">
+                <DialogHeader>
+                    <DialogTitle>Invite a New Roommate</DialogTitle>
+                    <DialogDescription>
+                        Add a new roommate to the meal plan. They will need to sign up with the same email to log in.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="grid gap-4 py-4">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="name" className="text-right">
+                            Name
+                        </Label>
+                        <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-3" placeholder="Jane Doe" />
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="email" className="text-right">
+                            Email
+                        </Label>
+                        <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="col-span-3" placeholder="jane.doe@example.com" />
+                    </div>
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                      <Button type="button" variant="secondary">Cancel</Button>
+                    </DialogClose>
+                    <Button onClick={handleInvite} disabled={isSubmitting}>
+                        {isSubmitting ? "Inviting..." : "Invite Roommate"}
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    )
+}
 
 function MembersList() {
     const { user } = useUser();
@@ -24,86 +122,62 @@ function MembersList() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [refreshKey, setRefreshKey] = useState(0);
 
     const today = new Date();
     const monthId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 
     const planDocRef = useMemoFirebase(() => firestore ? doc(firestore, 'monthlyPlans', monthId) : null, [firestore, monthId]);
     const { data: monthlyPlan, isLoading: isPlanLoading } = useDoc<MonthlyPlan>(planDocRef);
-    
+
     const participantsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `monthlyPlans/${monthId}/participations`) : null, [firestore, monthId]);
     const { data: participantsData, isLoading: areParticipantsLoading } = useCollection<Omit<Participant, 'name' | 'photoURL' | 'cost'>>(participantsCollectionRef);
 
+    const roommatesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, 'roommates') : null, [firestore, refreshKey]);
+    const { data: allRoommates, isLoading: areRoommatesLoading } = useCollection<User & {id: string}>(roommatesCollectionRef);
+
     useEffect(() => {
-        const fetchParticipantDetails = async () => {
-            if (!firestore || areParticipantsLoading || !participantsData || isPlanLoading) {
-                setIsLoading(areParticipantsLoading || isPlanLoading);
-                return;
-            }
+        if (areRoommatesLoading || areParticipantsLoading || isPlanLoading || !firestore) {
             setIsLoading(true);
+            return;
+        }
 
-            const costPerDay = (monthlyPlan?.monthlyExpense || 0) / 30;
+        const costPerDay = (monthlyPlan?.monthlyExpense || 0) / 30;
 
-            const participantPromises = participantsData.map(async (p) => {
-                const roommateDocRef = doc(firestore, 'roommates', p.id);
-                const roommateSnap = await getDoc(roommateDocRef);
-                const roommate = roommateSnap.data() as User;
-                
-                let lastUpdatedAtDate: Date; // Default
-                if (p.lastUpdatedAt) {
-                    if (p.lastUpdatedAt instanceof Timestamp) {
-                        lastUpdatedAtDate = p.lastUpdatedAt.toDate();
-                    } else if (p.lastUpdatedAt instanceof Date) {
-                        lastUpdatedAtDate = p.lastUpdatedAt;
-                    } else if (typeof p.lastUpdatedAt === 'string') {
-                        lastUpdatedAtDate = new Date(p.lastUpdatedAt);
-                    } else {
-                        lastUpdatedAtDate = new Date(); // Fallback
-                    }
-                } else {
-                    lastUpdatedAtDate = new Date();
+        const currentParticipantsData = participantsData || [];
+
+        const combinedList = allRoommates?.map(roommate => {
+            const participation = currentParticipantsData.find(p => p.id === roommate.id);
+            
+            const days = participation?.days || 0;
+            
+            let lastUpdatedAtDate: Date = new Date();
+            if (participation?.lastUpdatedAt) {
+                 if (participation.lastUpdatedAt instanceof Timestamp) {
+                    lastUpdatedAtDate = participation.lastUpdatedAt.toDate();
+                } else if (typeof participation.lastUpdatedAt === 'string') {
+                    lastUpdatedAtDate = new Date(participation.lastUpdatedAt);
+                } else if (participation.lastUpdatedAt instanceof Date) {
+                    lastUpdatedAtDate = participation.lastUpdatedAt;
                 }
-
-                
-                return {
-                    ...p,
-                    name: roommate?.displayName || 'Unknown',
-                    photoURL: roommate?.photoURL || null,
-                    cost: p.days * costPerDay,
-                    lastUpdatedAt: lastUpdatedAtDate,
-                };
-            });
+            }
             
-            const fetchedParticipants = await Promise.all(participantPromises);
-            
-            const allRoommatesQuery = query(collection(firestore, 'roommates'));
-            const allRoommatesSnap = await getDocs(allRoommatesQuery);
-            
-            const allRoommates = allRoommatesSnap.docs.map(d => ({ id: d.id, ...d.data() } as User & {id: string}));
+            return {
+                id: roommate.id,
+                name: roommate.displayName || roommate.name || 'Unknown',
+                photoURL: roommate.photoURL || null,
+                days: days,
+                cost: days * costPerDay,
+                lastUpdatedAt: lastUpdatedAtDate,
+                lastUpdatedBy: participation?.lastUpdatedBy || 'System',
+                isAdmin: roommate.isAdmin || false,
+            };
+        }) || [];
 
-            const participatingIds = new Set(fetchedParticipants.map(p => p.id));
-            
-            allRoommates.forEach(roommate => {
-                if (!participatingIds.has(roommate.id)) {
-                    fetchedParticipants.push({
-                        id: roommate.id,
-                        name: roommate.displayName,
-                        photoURL: roommate.photoURL,
-                        days: 0,
-                        cost: 0,
-                        lastUpdatedAt: new Date(),
-                        lastUpdatedBy: 'System',
-                    });
-                }
-            });
+        setParticipants(combinedList);
+        setIsLoading(false);
 
-
-            setParticipants(fetchedParticipants);
-            setIsLoading(false);
-        };
-
-        fetchParticipantDetails();
-    }, [firestore, participantsData, monthlyPlan, areParticipantsLoading, isPlanLoading]);
+    }, [allRoommates, participantsData, monthlyPlan, areRoommatesLoading, areParticipantsLoading, isPlanLoading, firestore]);
 
 
     const handleDaysChange = (participantId: string, newDays: string) => {
@@ -111,8 +185,8 @@ function MembersList() {
         const costPerDay = (monthlyPlan?.monthlyExpense || 0) / 30;
         setParticipants(prev => prev.map(p =>
             p.id === participantId
-            ? { ...p, days: days, cost: days * costPerDay }
-            : p
+                ? { ...p, days: days, cost: days * costPerDay }
+                : p
         ));
     };
 
@@ -121,14 +195,21 @@ function MembersList() {
             toast({ title: "Not authenticated or DB not available", description: "You must be logged in.", variant: "destructive" });
             return;
         }
+
+        if (participant.id.startsWith('placeholder_')) {
+            toast({ title: "Cannot Save", description: "This user must sign up first before you can save their participation.", variant: "destructive" });
+            return;
+        }
+
         setIsSubmitting(true);
-        
+
         const participantDocRef = doc(firestore, `monthlyPlans/${monthId}/participations`, participant.id);
 
         const { name, photoURL, cost, ...participantToSave } = participant;
 
         const updatedParticipant = {
             ...participantToSave,
+            days: participant.days, // ensure days are saved
             lastUpdatedAt: new Date(),
             lastUpdatedBy: user.displayName || user.email || 'Unknown User',
         };
@@ -136,9 +217,6 @@ function MembersList() {
         setDocumentNonBlocking(participantDocRef, updatedParticipant, { merge: true });
 
         toast({ title: "Success", description: `${participant.name}'s plan updated.` });
-        
-        // We don't want to wait for the result, so we'll set submitting to false immediately.
-        // Errors will be caught by the global error handler.
         setIsSubmitting(false);
     };
 
@@ -168,78 +246,88 @@ function MembersList() {
     }
 
     return (
-        <TooltipProvider>
-            <Table>
-                <TableHeader>
-                    <TableRow>
-                        <TableHead>Member</TableHead>
-                        <TableHead>Participation (Days)</TableHead>
-                        <TableHead>Calculated Cost</TableHead>
-                        <TableHead>Last Updated</TableHead>
-                        <TableHead className="text-right">Actions</TableHead>
-                    </TableRow>
-                </TableHeader>
-                <TableBody>
-                    {participants.map((p) => (
-                        <TableRow key={p.id}>
-                            <TableCell>
-                                <div className="flex items-center gap-3">
-                                    <Avatar className="h-9 w-9">
-                                        <AvatarImage src={p.photoURL ?? ''} alt={p.name ?? ''} />
-                                        <AvatarFallback>{getInitials(p.name)}</AvatarFallback>
-                                    </Avatar>
-                                    <div className="font-medium">{p.name}</div>
-                                </div>
-                            </TableCell>
-                            <TableCell>
-                                <Select
-                                    value={String(p.days)}
-                                    onValueChange={(value) => handleDaysChange(p.id, value)}
-                                    disabled={user?.uid !== p.id && !(user as User)?.isAdmin}
-                                >
-                                    <SelectTrigger className="w-[120px]">
-                                        <SelectValue placeholder="Select days" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {dayOptions.map(day => (
-                                            <SelectItem key={day} value={String(day)}>{day === 30 ? 'Full Month' : `${day} days`}</SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                            </TableCell>
-                            <TableCell>₹{p.cost.toFixed(2)}</TableCell>
-                            <TableCell>
-                                {p.lastUpdatedAt && (
-                                <div className="flex items-center gap-2">
-                                     {format(p.lastUpdatedAt, 'PPp')}
-                                    <Tooltip>
-                                        <TooltipTrigger asChild>
-                                            <Info className="h-4 w-4 text-muted-foreground" />
-                                        </TooltipTrigger>
-                                        <TooltipContent>
-                                            <p>Updated by: {p.lastUpdatedBy}</p>
-                                        </TooltipContent>
-                                    </Tooltip>
-                                </div>
-                                )}
-                            </TableCell>
-                            <TableCell className="text-right">
-                                <Button
-                                    size="sm"
-                                    onClick={() => handleSaveChanges(p)}
-                                    disabled={isSubmitting || (user?.uid !== p.id && !(user as User)?.isAdmin)}
-                                >
-                                    Save
-                                </Button>
-                            </TableCell>
+        <>
+            {(user as User)?.isAdmin && (
+                <div className="flex justify-end mb-4">
+                    <InviteRoommateDialog onInvite={() => setRefreshKey(k => k + 1)} />
+                </div>
+            )}
+            <TooltipProvider>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Member</TableHead>
+                            <TableHead>Participation (Days)</TableHead>
+                            <TableHead>Calculated Cost</TableHead>
+                            <TableHead>Last Updated</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
-                    ))}
-                </TableBody>
-            </Table>
-        </TooltipProvider>
+                    </TableHeader>
+                    <TableBody>
+                        {participants.map((p) => (
+                            <TableRow key={p.id}>
+                                <TableCell>
+                                    <div className="flex items-center gap-3">
+                                        <Avatar className="h-9 w-9">
+                                            <AvatarImage src={p.photoURL ?? ''} alt={p.name ?? ''} />
+                                            <AvatarFallback>{getInitials(p.name)}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="font-medium">{p.name}</div>
+                                        {p.isAdmin && <Badge>Admin</Badge>}
+                                    </div>
+                                </TableCell>
+                                <TableCell>
+                                    <Select
+                                        value={String(p.days)}
+                                        onValueChange={(value) => handleDaysChange(p.id, value)}
+                                        disabled={user?.uid !== p.id && !(user as User)?.isAdmin}
+                                    >
+                                        <SelectTrigger className="w-[120px]">
+                                            <SelectValue placeholder="Select days" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {dayOptions.map(day => (
+                                                <SelectItem key={day} value={String(day)}>{day === 30 ? 'Full Month' : `${day} days`}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                </TableCell>
+                                <TableCell>₹{p.cost.toFixed(2)}</TableCell>
+                                <TableCell>
+                                    {p.days > 0 && p.lastUpdatedAt && (
+                                    <div className="flex items-center gap-2">
+                                        {format(p.lastUpdatedAt, 'PPp')}
+                                        <Tooltip>
+                                            <TooltipTrigger asChild>
+                                                <Info className="h-4 w-4 text-muted-foreground" />
+                                            </TooltipTrigger>
+                                            <TooltipContent>
+                                                <p>Updated by: {p.lastUpdatedBy}</p>
+                                            </TooltipContent>
+                                        </Tooltip>
+                                    </div>
+                                    )}
+                                </TableCell>
+                                <TableCell className="text-right">
+                                    <Button
+                                        size="sm"
+                                        onClick={() => handleSaveChanges(p)}
+                                        disabled={isSubmitting || (user?.uid !== p.id && !(user as User)?.isAdmin)}
+                                    >
+                                        Save
+                                    </Button>
+                                </TableCell>
+                            </TableRow>
+                        ))}
+                    </TableBody>
+                </Table>
+            </TooltipProvider>
+        </>
     );
 }
 
 export default function MembersClient() {
     return <MembersList />;
 }
+
+    
