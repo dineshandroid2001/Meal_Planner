@@ -25,7 +25,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogClose,
-  DialogFooter,
+  DialogFooter
 } from "@/components/ui/dialog";
 import { Skeleton } from '@/components/ui/skeleton';
 import { CheckCircle, Trash2 } from 'lucide-react';
@@ -216,7 +216,7 @@ export default function ReimbursementClient() {
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button type="submit" disabled={isSubmitting}>
+                    <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
                         {isSubmitting ? 'Submitting...' : 'Submit Request'}
                     </Button>
                 </CardFooter>
@@ -271,7 +271,7 @@ export default function ReimbursementClient() {
                                 <TableRow>
                                     <TableHead>User</TableHead>
                                     <TableHead>Amount</TableHead>
-                                    <TableHead>Date</TableHead>
+                                    <TableHead className="hidden sm:table-cell">Date</TableHead>
                                     <TableHead>Status</TableHead>
                                     <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
@@ -288,7 +288,7 @@ export default function ReimbursementClient() {
                                     <TableRow key={req.id}>
                                         <TableCell>{roommatesMap.get(req.roommateId) || 'Unknown'}</TableCell>
                                         <TableCell>₹{req.amount.toFixed(2)}</TableCell>
-                                        <TableCell>{formatDate(req.submittedAt)}</TableCell>
+                                        <TableCell className="hidden sm:table-cell">{formatDate(req.submittedAt)}</TableCell>
                                         <TableCell>
                                             <Badge variant={req.status === 'pending' ? 'secondary' : req.status === 'approved' ? 'default' : 'destructive'}>
                                                 {req.status}

@@ -23,6 +23,7 @@ export default function LoginForm() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [authAction, setAuthAction] = useState<'signIn' | 'signUp' | null>(null);
 
   const handleAuthAction = async (action: 'signIn' | 'signUp') => {
     if (!email || !password) {
@@ -35,6 +36,7 @@ export default function LoginForm() {
     }
     
     setIsSubmitting(true);
+    setAuthAction(action);
 
     try {
       let userCredential;
@@ -83,6 +85,7 @@ export default function LoginForm() {
       });
     } finally {
       setIsSubmitting(false);
+      setAuthAction(null);
     }
   };
 
@@ -111,10 +114,10 @@ export default function LoginForm() {
       </div>
       <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:gap-2">
         <Button onClick={() => handleAuthAction('signIn')} disabled={isSubmitting} className="w-full">
-          {isSubmitting ? 'Signing In...' : 'Sign In'}
+          {isSubmitting && authAction === 'signIn' ? 'Signing In...' : 'Sign In'}
         </Button>
         <Button onClick={() => handleAuthAction('signUp')} disabled={isSubmitting} variant="secondary" className="w-full">
-          {isSubmitting ? 'Signing Up...' : 'Sign Up'}
+          {isSubmitting && authAction === 'signUp' ? 'Signing Up...' : 'Sign Up'}
         </Button>
       </div>
     </div>

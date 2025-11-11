@@ -161,7 +161,7 @@ function MembersList() {
                             <TableHead>Member</TableHead>
                             <TableHead>Participation (Days)</TableHead>
                             <TableHead>Calculated Cost</TableHead>
-                            <TableHead>Last Updated</TableHead>
+                            <TableHead className="hidden md:table-cell">Last Updated</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
@@ -174,8 +174,10 @@ function MembersList() {
                                             <AvatarImage src={p.photoURL ?? ''} alt={p.name ?? ''} />
                                             <AvatarFallback>{getInitials(p.name)}</AvatarFallback>
                                         </Avatar>
-                                        <div className="font-medium">{p.name}</div>
-                                        {p.isAdmin && <Badge>Admin</Badge>}
+                                        <div className="grid gap-0.5">
+                                          <div className="font-medium">{p.name}</div>
+                                          {p.isAdmin && <Badge>Admin</Badge>}
+                                        </div>
                                     </div>
                                 </TableCell>
                                 <TableCell>
@@ -195,7 +197,7 @@ function MembersList() {
                                     </Select>
                                 </TableCell>
                                 <TableCell>₹{p.cost.toFixed(2)}</TableCell>
-                                <TableCell>
+                                <TableCell className="hidden md:table-cell">
                                     {p.days > 0 && p.lastUpdatedAt && (
                                     <div className="flex items-center gap-2">
                                         {format(p.lastUpdatedAt, 'PPp')}
@@ -215,6 +217,7 @@ function MembersList() {
                                         size="sm"
                                         onClick={() => handleSaveChanges(p)}
                                         disabled={isSubmitting || !canEdit(p.id)}
+                                        className="w-full sm:w-auto"
                                     >
                                         Save
                                     </Button>
