@@ -12,7 +12,7 @@ import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage'
 import { useToast } from '@/hooks/use-toast';
 import { ReimbursementRequest, User } from '@/lib/types';
 import { groceryReimbursementSummarization } from '@/ai/flows/grocery-reimbursement-summarization';
-import { collection, query, orderBy } from 'firebase/firestore';
+import { collection, query, orderBy, Timestamp } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -79,7 +79,7 @@ export default function ReimbursementClient() {
 
             const newRequest: Partial<ReimbursementRequest> = {
                 roommateId: user.uid,
-                userName: user.displayName || 'Unknown',
+                userName: (user as User).name || user.displayName || 'Unknown',
                 amount: parseFloat(amount),
                 description,
                 status: 'pending',
@@ -121,6 +121,19 @@ export default function ReimbursementClient() {
         }
     };
 
+    const formatDate = (timestamp: Timestamp) => {
+        if (timestamp && typeof timestamp.toDate === 'function') {
+            return format(timestamp.toDate(), 'PP');
+        }
+        return 'Invalid date';
+    }
+
+    const formatDialogDate = (timestamp: Timestamp) => {
+        if (timestamp && typeof timestamp.toDate === 'function') {
+            return format(timestamp.toDate(), 'PPp');
+        }
+        return 'Invalid date';
+    }
 
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -184,7 +197,7 @@ export default function ReimbursementClient() {
                                 <TableRow key={req.id}>
                                     <TableCell>{req.userName}</TableCell>
                                     <TableCell>₹{req.amount.toFixed(2)}</TableCell>
-                                    <TableCell>{format(new Date(req.submittedAt.seconds * 1000), 'PP')}</TableCell>
+                                    <TableCell>{formatDate(req.submittedAt)}</TableCell>
                                     <TableCell>
                                         <Badge variant={req.status === 'pending' ? 'secondary' : req.status === 'approved' ? 'default' : 'destructive'}>
                                             {req.status}
@@ -199,7 +212,7 @@ export default function ReimbursementClient() {
                                             <DialogHeader>
                                             <DialogTitle>Reimbursement Details</DialogTitle>
                                             <DialogDescription>
-                                                Submitted by {req.userName} on {format(new Date(req.submittedAt.seconds * 1000), 'PPp')}
+                                                Submitted by {req.userName} on {formatDialogDate(req.submittedAt)}
                                             </DialogDescription>
                                             </DialogHeader>
                                             <div className="grid gap-4 py-4">
@@ -245,5 +258,7 @@ export default function ReimbursementClient() {
 }
 
 
+
+    
 
     
