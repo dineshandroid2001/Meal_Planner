@@ -27,7 +27,7 @@ service cloud.firestore {
     /**
      * @description Manages roommate profiles with owner-only access.
      * @path /roommates/{roommateId}
-     * @allow (create) - A user can create their own profile if the roommateId matches their auth UID.
+     * @allow (create) - A user can create their own profile if the roommateId matches their auth UID. An admin can create profiles for others.
      * @allow (get, update, delete) - A user can read, update, or delete their own profile if the roommateId matches their auth UID.
      * @deny (create) - A user cannot create a profile for another user (roommateId does not match auth UID).
      * @deny (get, update, delete) - A user cannot read, update, or delete another user's profile (roommateId does not match auth UID).
@@ -42,9 +42,15 @@ service cloud.firestore {
         return isOwner(roommateId) && resource != null;
       }
 
+      function userIsAdmin() {
+        // Check the isAdmin flag on the user's own roommate document.
+        return request.auth != null && get(/databases/$(database)/documents/roommates/$(request.auth.uid)).data.isAdmin == true;
+      }
+
       allow get: if request.auth != null;
       allow list: if request.auth != null;
-      allow create: if isOwner(roommateId) && request.resource.data.id == roommateId;
+      // Allow creation if the user is the owner OR if the user is an admin.
+      allow create: if (isOwner(roommateId) && request.resource.data.id == roommateId) || userIsAdmin();
       allow update: if isExistingOwner(roommateId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(roommateId);
     }
