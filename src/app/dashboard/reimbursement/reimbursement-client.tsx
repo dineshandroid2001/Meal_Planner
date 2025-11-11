@@ -13,7 +13,7 @@ import { useUser, useFirestore, addDocumentNonBlocking, useCollection, useMemoFi
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { ReimbursementRequest, User } from '@/lib/types';
-import { groceryReimbursementSummarization } from '@/ai/flows/grocery-reimbursement-summarization';
+import { formatINR } from '@/lib/utils';
 import { collection, query, orderBy, Timestamp, doc } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
@@ -135,16 +135,10 @@ export default function ReimbursementClient() {
         }
 
         setIsSubmitting(true);
-        toast({ title: 'Submitting...', description: 'Analyzing your request with AI. This may take a moment.' });
+        toast({ title: 'Submitting...', description: 'Processing your reimbursement request.' });
         
         try {
             const paymentScreenshotDataUri = paymentFile ? await fileToDataUri(paymentFile) : undefined;
-            
-            const aiResult = await groceryReimbursementSummarization({
-                paymentScreenshotDataUri,
-                expectedTotalAmount: parseFloat(amount),
-                description,
-            });
 
             const newRequest: Partial<ReimbursementRequest> = {
                 roommateId: user.uid,
@@ -153,9 +147,6 @@ export default function ReimbursementClient() {
                 description,
                 status: 'pending',
                 submittedAt: new Date(),
-                aiSummary: aiResult.summary,
-                aiAlignment: aiResult.alignment,
-                aiDiscrepancies: aiResult.flaggedDiscrepancies,
             };
             
 
@@ -236,7 +227,7 @@ export default function ReimbursementClient() {
                         <Textarea id="description" placeholder="e.g., Weekly groceries" value={description} onChange={e => setDescription(e.target.value)} required />
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="amount">Total Amount (₹)</Label>
+                        <Label htmlFor="amount">Total Amount (INR)</Label>
                         <Input id="amount" type="number" placeholder="1250.00" value={amount} onChange={e => setAmount(e.target.value)} required />
                     </div>
                     <div className="grid gap-2">
@@ -280,8 +271,8 @@ export default function ReimbursementClient() {
                                 ) : reimbursementSummary.map(summary => (
                                     <TableRow key={summary.roommateId}>
                                         <TableCell className="font-medium">{summary.roommateName}</TableCell>
-                                        <TableCell className="text-right">₹{summary.pending.toFixed(2)}</TableCell>
-                                        <TableCell className="text-right">₹{summary.approved.toFixed(2)}</TableCell>
+                                        <TableCell className="text-right">{formatINR(summary.pending)}</TableCell>
+                                        <TableCell className="text-right">{formatINR(summary.approved)}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -332,19 +323,19 @@ export default function ReimbursementClient() {
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs">
                                     <div className="text-center">
                                         <div className="text-muted-foreground">Total Amount</div>
-                                        <div className="font-semibold text-sm">₹{filteredStats.total.toFixed(2)}</div>
+                                        <div className="font-semibold text-sm">{formatINR(filteredStats.total)}</div>
                                     </div>
                                     <div className="text-center">
                                         <div className="text-muted-foreground">Pending</div>
-                                        <div className="font-semibold text-sm text-yellow-600">₹{filteredStats.pending.toFixed(2)}</div>
+                                        <div className="font-semibold text-sm text-yellow-600">{formatINR(filteredStats.pending)}</div>
                                     </div>
                                     <div className="text-center">
                                         <div className="text-muted-foreground">Approved</div>
-                                        <div className="font-semibold text-sm text-green-600">₹{filteredStats.approved.toFixed(2)}</div>
+                                        <div className="font-semibold text-sm text-green-600">{formatINR(filteredStats.approved)}</div>
                                     </div>
                                     <div className="text-center">
                                         <div className="text-muted-foreground">Rejected</div>
-                                        <div className="font-semibold text-sm text-red-600">₹{filteredStats.rejected.toFixed(2)}</div>
+                                        <div className="font-semibold text-sm text-red-600">{formatINR(filteredStats.rejected)}</div>
                                     </div>
                                 </div>
                             </div>
@@ -378,7 +369,7 @@ export default function ReimbursementClient() {
                                 {filteredReimbursements.map(req => (
                                     <TableRow key={req.id}>
                                         <TableCell>{roommatesMap.get(req.roommateId) || 'Unknown'}</TableCell>
-                                        <TableCell>₹{req.amount.toFixed(2)}</TableCell>
+                                        <TableCell>{formatINR(req.amount)}</TableCell>
                                         <TableCell className="hidden sm:table-cell">{formatDate(req.submittedAt)}</TableCell>
                                         <TableCell>
                                             <Badge variant={req.status === 'pending' ? 'secondary' : req.status === 'approved' ? 'default' : 'destructive'}>
@@ -398,12 +389,6 @@ export default function ReimbursementClient() {
                                                 </DialogDescription>
                                                 </DialogHeader>
                                                 <div className="grid gap-4 py-4">
-                                                    <div className="font-semibold">AI Analysis</div>
-                                                    <div className="text-sm p-3 bg-muted/50 rounded-lg space-y-2">
-                                                        <p><strong>Summary:</strong> {req.aiSummary}</p>
-                                                        <p><strong>Alignment:</strong> {req.aiAlignment}</p>
-                                                        <p><strong>Discrepancies:</strong> {req.aiDiscrepancies || 'None'}</p>
-                                                    </div>
                                                     <div className="grid grid-cols-2 gap-4">
                                                         {req.paymentUrl && (
                                                             <div>

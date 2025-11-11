@@ -45,8 +45,5 @@ export type ReimbursementRequest = {
   paymentUrl?: string;
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: any;
-  aiSummary: string;
-  aiAlignment: string;
-  aiDiscrepancies: string;
 };
 

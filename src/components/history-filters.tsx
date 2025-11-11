@@ -273,7 +273,6 @@ export function useHistoryFilters<T extends {
   submittedAt: any;
   description?: string;
   amount?: number;
-  aiSummary?: string;
   userName?: string;
 }>(data: T[] | undefined, filters: FilterState, roommatesMap?: Map<string, string>) {
   return React.useMemo(() => {
@@ -287,7 +286,6 @@ export function useHistoryFilters<T extends {
         const searchableText = [
           item.description?.toLowerCase() || '',
           item.amount?.toString() || '',
-          item.aiSummary?.toLowerCase() || '',
           userName.toLowerCase()
         ].join(' ');
         

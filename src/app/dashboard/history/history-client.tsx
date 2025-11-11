@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useUser, useFirestore, useCollection, useMemoFirebase, setDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { ReimbursementRequest, User } from '@/lib/types';
+import { formatINR } from '@/lib/utils';
 import { collection, query, orderBy, doc } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { format } from 'date-fns';
@@ -180,10 +181,10 @@ export default function HistoryPageClient() {
                             <TrendingUp className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold">₹{overallStats.total.toFixed(0)}</div>
+                            <div className="text-2xl font-bold">{formatINR(overallStats.total, false)}</div>
                             <p className="text-xs text-muted-foreground">
                                 {filteredStats.total !== overallStats.total && (
-                                    <span>Filtered: ₹{filteredStats.total.toFixed(0)}</span>
+                                    <span>Filtered: {formatINR(filteredStats.total, false)}</span>
                                 )}
                             </p>
                         </CardContent>
@@ -195,10 +196,10 @@ export default function HistoryPageClient() {
                             <Calendar className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-yellow-600">₹{overallStats.pending.toFixed(0)}</div>
+                            <div className="text-2xl font-bold text-yellow-600">{formatINR(overallStats.pending, false)}</div>
                             <p className="text-xs text-muted-foreground">
                                 {filteredStats.pending !== overallStats.pending && (
-                                    <span>Filtered: ₹{filteredStats.pending.toFixed(0)}</span>
+                                    <span>Filtered: {formatINR(filteredStats.pending, false)}</span>
                                 )}
                             </p>
                         </CardContent>
@@ -210,10 +211,10 @@ export default function HistoryPageClient() {
                             <CheckCircle className="h-4 w-4 text-muted-foreground" />
                         </CardHeader>
                         <CardContent>
-                            <div className="text-2xl font-bold text-green-600">₹{overallStats.approved.toFixed(0)}</div>
+                            <div className="text-2xl font-bold text-green-600">{formatINR(overallStats.approved, false)}</div>
                             <p className="text-xs text-muted-foreground">
                                 {filteredStats.approved !== overallStats.approved && (
-                                    <span>Filtered: ₹{filteredStats.approved.toFixed(0)}</span>
+                                    <span>Filtered: {formatINR(filteredStats.approved, false)}</span>
                                 )}
                             </p>
                         </CardContent>
@@ -277,7 +278,7 @@ export default function HistoryPageClient() {
                                                 {req.description}
                                             </div>
                                         </TableCell>
-                                        <TableCell className="font-medium">₹{req.amount.toFixed(2)}</TableCell>
+                                        <TableCell className="font-medium">{formatINR(req.amount)}</TableCell>
                                         <TableCell className="hidden sm:table-cell">{formatDate(req.submittedAt)}</TableCell>
                                         <TableCell>
                                             <Badge variant={req.status === 'pending' ? 'secondary' : req.status === 'approved' ? 'default' : 'destructive'}>
@@ -304,13 +305,7 @@ export default function HistoryPageClient() {
                                                             </div>
                                                             <div>
                                                                 <Label className="font-semibold">Amount</Label>
-                                                                <p className="text-sm text-muted-foreground mt-1">₹{req.amount.toFixed(2)}</p>
-                                                            </div>
-                                                            <div className="font-semibold">AI Analysis</div>
-                                                            <div className="text-sm p-3 bg-muted/50 rounded-lg space-y-2">
-                                                                <p><strong>Summary:</strong> {req.aiSummary}</p>
-                                                                <p><strong>Alignment:</strong> {req.aiAlignment}</p>
-                                                                <p><strong>Discrepancies:</strong> {req.aiDiscrepancies || 'None'}</p>
+                                                                <p className="text-sm text-muted-foreground mt-1">{formatINR(req.amount)}</p>
                                                             </div>
                                                             {req.paymentUrl && (
                                                                 <div>
