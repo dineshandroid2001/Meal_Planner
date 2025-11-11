@@ -198,7 +198,7 @@ export default function ReimbursementClient() {
             <Card className="lg:col-span-3">
                 <CardHeader>
                     <CardTitle>Submit Reimbursement</CardTitle>
-                    <CardDescription>Upload your receipt and payment details for AI-powered analysis.</CardDescription>
+                    <CardDescription>Upload your payment details for AI-powered analysis.</CardDescription>
                 </CardHeader>
                 <form id="reimbursement-form" onSubmit={handleSubmit}>
                 <CardContent className="grid gap-4">
@@ -314,12 +314,6 @@ export default function ReimbursementClient() {
                                                         <p><strong>Discrepancies:</strong> {req.aiDiscrepancies || 'None'}</p>
                                                     </div>
                                                     <div className="grid grid-cols-2 gap-4">
-                                                        {req.receiptUrl && (
-                                                            <div>
-                                                                <Label>Receipt</Label>
-                                                                <Image src={req.receiptUrl} alt="Receipt" width={250} height={400} className="rounded-md object-cover" />
-                                                            </div>
-                                                        )}
                                                         {req.paymentUrl && (
                                                             <div>
                                                                 <Label>Payment</Label>

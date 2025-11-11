@@ -109,7 +109,7 @@ export default function LoginForm() {
           required 
         />
       </div>
-      <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:space-x-2">
+      <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:gap-2">
         <Button onClick={() => handleAuthAction('signIn')} disabled={isSubmitting} className="w-full">
           {isSubmitting ? 'Signing In...' : 'Sign In'}
         </Button>
