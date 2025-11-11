@@ -7,7 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from 'date-fns';
-import { useUser, useFirestore, setDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, setDocumentNonBlocking, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { doc, collection, getDocs, query, getDoc, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -49,14 +49,21 @@ function MembersList() {
                 const roommateSnap = await getDoc(roommateDocRef);
                 const roommate = roommateSnap.data() as User;
                 
-                let lastUpdatedAtDate = new Date(); // Default
+                let lastUpdatedAtDate: Date; // Default
                 if (p.lastUpdatedAt) {
                     if (p.lastUpdatedAt instanceof Timestamp) {
                         lastUpdatedAtDate = p.lastUpdatedAt.toDate();
                     } else if (p.lastUpdatedAt instanceof Date) {
                         lastUpdatedAtDate = p.lastUpdatedAt;
+                    } else if (typeof p.lastUpdatedAt === 'string') {
+                        lastUpdatedAtDate = new Date(p.lastUpdatedAt);
+                    } else {
+                        lastUpdatedAtDate = new Date(); // Fallback
                     }
+                } else {
+                    lastUpdatedAtDate = new Date();
                 }
+
                 
                 return {
                     ...p,
@@ -204,7 +211,7 @@ function MembersList() {
                             <TableCell>
                                 {p.lastUpdatedAt && (
                                 <div className="flex items-center gap-2">
-                                    {format(p.lastUpdatedAt, 'PPp')}
+                                     {format(p.lastUpdatedAt, 'PPp')}
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <Info className="h-4 w-4 text-muted-foreground" />
