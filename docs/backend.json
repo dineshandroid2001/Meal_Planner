@@ -1,3 +1,4 @@
+
 {
   "entities": {
     "Roommate": {
@@ -187,7 +188,7 @@
   },
   "auth": {
     "providers": [
-      "google.com"
+      "password"
     ]
   },
   "firestore": {
