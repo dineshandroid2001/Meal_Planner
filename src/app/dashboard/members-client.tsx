@@ -12,99 +12,11 @@ import { useToast } from '@/hooks/use-toast';
 import { doc, collection, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Info, UserPlus } from 'lucide-react';
+import { Info } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter,
-  DialogClose
-} from "@/components/ui/dialog";
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 
 const dayOptions = [0, 10, 15, 20, 30];
-
-function InviteRoommateDialog({ onInvite }: { onInvite: () => void }) {
-    const firestore = useFirestore();
-    const { toast } = useToast();
-    const [name, setName] = useState('');
-    const [email, setEmail] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-    const [isOpen, setIsOpen] = useState(false);
-
-    const handleInvite = async () => {
-        if (!name || !email || !firestore) {
-            toast({ title: "Missing fields", description: "Please enter name and email.", variant: "destructive" });
-            return;
-        }
-        setIsSubmitting(true);
-
-        const tempId = `placeholder_${email.replace(/[^a-zA-Z0-9]/g, '')}`;
-        const userDocRef = doc(firestore, 'roommates', tempId);
-
-        
-        setDocumentNonBlocking(userDocRef, {
-            name: name,
-            email: email,
-            photoURL: `https://api.dicebear.com/8.x/initials/svg?seed=${name}`,
-            isAdmin: false,
-        }, { merge: true });
-
-        toast({ title: "Roommate Invited", description: `${name} has been added. They will need to sign up with this email.` });
-        onInvite();
-        setName('');
-        setEmail('');
-        setIsOpen(false);
-        setIsSubmitting(false);
-    };
-
-    return (
-        <Dialog open={isOpen} onOpenChange={setIsOpen}>
-            <DialogTrigger asChild>
-                <Button size="sm" variant="outline">
-                    <UserPlus className="mr-2 h-4 w-4" />
-                    Invite
-                </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[425px]">
-                <DialogHeader>
-                    <DialogTitle>Invite a New Roommate</DialogTitle>
-                    <DialogDescription>
-                        Add a new roommate to the meal plan. They will need to sign up with the same email to log in.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="name" className="text-right">
-                            Name
-                        </Label>
-                        <Input id="name" value={name} onChange={(e) => setName(e.target.value)} className="col-span-3" placeholder="Jane Doe" />
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label htmlFor="email" className="text-right">
-                            Email
-                        </Label>
-                        <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="col-span-3" placeholder="jane.doe@example.com" />
-                    </div>
-                </div>
-                <DialogFooter>
-                    <DialogClose asChild>
-                      <Button type="button" variant="secondary">Cancel</Button>
-                    </DialogClose>
-                    <Button onClick={handleInvite} disabled={isSubmitting}>
-                        {isSubmitting ? "Inviting..." : "Invite Roommate"}
-                    </Button>
-                </DialogFooter>
-            </DialogContent>
-        </Dialog>
-    )
-}
 
 function MembersList() {
     const { user } = useUser();
@@ -113,7 +25,6 @@ function MembersList() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [refreshKey, setRefreshKey] = useState(0);
 
     const today = new Date();
     const monthId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -124,7 +35,7 @@ function MembersList() {
     const participantsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `monthlyPlans/${monthId}/participations`) : null, [firestore, monthId]);
     const { data: participantsData, isLoading: areParticipantsLoading } = useCollection<Omit<Participant, 'name' | 'photoURL' | 'cost'>>(participantsCollectionRef);
 
-    const roommatesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, 'roommates') : null, [firestore, refreshKey]);
+    const roommatesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, 'roommates') : null, [firestore]);
     const { data: allRoommates, isLoading: areRoommatesLoading } = useCollection<User & {id: string}>(roommatesCollectionRef);
 
     useEffect(() => {
@@ -243,11 +154,6 @@ function MembersList() {
 
     return (
         <>
-            {(user as User)?.isAdmin && (
-                <div className="flex justify-end mb-4">
-                    <InviteRoommateDialog onInvite={() => setRefreshKey(k => k + 1)} />
-                </div>
-            )}
             <TooltipProvider>
                 <Table>
                     <TableHeader>
