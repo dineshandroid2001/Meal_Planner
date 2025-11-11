@@ -7,8 +7,8 @@
  *
  * Data Structure:
  * - /roommates/{roommateId}: Stores private roommate profiles, accessible only to the owner.
- * - /mealPlans/{mealPlanId}: Stores meal plan details, accessible only to the admin who created it.
- * - /mealPlans/{mealPlanId}/participations/{participationId}: Stores participation records, accessible only to the owner (roommate) or meal plan admin.
+ * - /monthlyPlans/{mealPlanId}: Stores meal plan details, accessible only to the admin who created it.
+ * - /monthlyPlans/{mealPlanId}/participations/{participationId}: Stores participation records, accessible only to the owner (roommate) or meal plan admin.
  * - /reimbursements/{reimbursementId}: Stores reimbursement requests, accessible only to the owner (roommate).
  * - /auditLogs/{auditLogId}: Stores audit logs, accessible to the admin.
  *
@@ -51,14 +51,14 @@ service cloud.firestore {
 
     /**
      * @description Manages meal plans with admin-only access.
-     * @path /mealPlans/{mealPlanId}
+     * @path /monthlyPlans/{mealPlanId}
      * @allow (create) - An admin can create a meal plan if their UID matches the adminId in the plan.
      * @allow (get, update, delete) - An admin can read, update, or delete a meal plan if their UID matches the adminId in the plan.
      * @deny (create) - A non-admin user cannot create a meal plan.
      * @deny (get, update, delete) - A non-admin user cannot read, update, or delete a meal plan.
      * @principle Enforces admin-only access based on the 'adminId' field in the document.
      */
-    match /mealPlans/{mealPlanId} {
+    match /monthlyPlans/{mealPlanId} {
       function isAdmin(adminId) {
         return request.auth != null && request.auth.uid == adminId;
       }
@@ -76,14 +76,14 @@ service cloud.firestore {
 
     /**
      * @description Manages participation records within a meal plan.
-     * @path /mealPlans/{mealPlanId}/participations/{participationId}
+     * @path /monthlyPlans/{mealPlanId}/participations/{participationId}
      * @allow (create) - A user can create a participation record if they are the owner (roommate) or the meal plan admin.
      * @allow (get, list, update, delete) - A user can read, list, update, or delete their own participation record if they are the owner (roommate) or the meal plan admin.
      * @deny (create) - A user cannot create a participation record for another user unless they are the meal plan admin.
      * @deny (get, list, update, delete) - A user cannot read, list, update, or delete another user's participation record unless they are the meal plan admin.
      * @principle Enforces ownership and admin-based access control for participation records.
      */
-    match /mealPlans/{mealPlanId}/participations/{participationId} {
+    match /monthlyPlans/{mealPlanId}/participations/{participationId} {
       function isRoommate(roommateId) {
         return request.auth != null && request.auth.uid == roommateId;
       }
