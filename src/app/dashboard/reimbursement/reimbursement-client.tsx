@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -76,35 +77,31 @@ export default function ReimbursementClient() {
                 description,
             });
 
-            let receiptUrl: string | undefined = undefined;
-            let paymentUrl: string | undefined = undefined;
-            const timestamp = Date.now();
-
-            if (receiptDataUri && receiptFile) {
-                const receiptRef = ref(storage, `reimbursements/${user.uid}/${timestamp}_receipt`);
-                await uploadString(receiptRef, receiptDataUri, 'data_url');
-                receiptUrl = await getDownloadURL(receiptRef);
-            }
-
-            if (paymentScreenshotDataUri && paymentFile) {
-                const paymentRef = ref(storage, `reimbursements/${user.uid}/${timestamp}_payment`);
-                await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url');
-                paymentUrl = await getDownloadURL(paymentRef);
-            }
-            
             const newRequest: Omit<ReimbursementRequest, 'id'> = {
                 userId: user.uid,
                 userName: user.displayName || 'Unknown',
                 amount: parseFloat(amount),
                 description,
-                receiptUrl,
-                paymentUrl,
                 status: 'pending',
                 submittedAt: new Date(),
                 aiSummary: aiResult.summary,
                 aiAlignment: aiResult.alignment,
                 aiDiscrepancies: aiResult.flaggedDiscrepancies,
             };
+
+            const timestamp = Date.now();
+
+            if (receiptDataUri && receiptFile) {
+                const receiptRef = ref(storage, `reimbursements/${user.uid}/${timestamp}_receipt`);
+                await uploadString(receiptRef, receiptDataUri, 'data_url');
+                newRequest.receiptUrl = await getDownloadURL(receiptRef);
+            }
+
+            if (paymentScreenshotDataUri && paymentFile) {
+                const paymentRef = ref(storage, `reimbursements/${user.uid}/${timestamp}_payment`);
+                await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url');
+                newRequest.paymentUrl = await getDownloadURL(paymentRef);
+            }
 
             await addDocumentNonBlocking(collection(firestore, 'reimbursements'), newRequest);
             
@@ -246,3 +243,4 @@ export default function ReimbursementClient() {
         </div>
     );
 }
+

@@ -1,3 +1,4 @@
+
 import type { User as FirebaseUser } from 'firebase/auth';
 import type { Timestamp } from 'firebase/firestore';
 
@@ -43,7 +44,7 @@ export type ReimbursementRequest = {
   receiptUrl?: string;
   paymentUrl?: string;
   status: 'pending' | 'approved' | 'rejected';
-  submittedAt: Timestamp;
+  submittedAt: Date;
   aiSummary: string;
   aiAlignment: string;
   aiDiscrepancies: string;
