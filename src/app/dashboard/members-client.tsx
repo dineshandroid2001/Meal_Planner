@@ -7,14 +7,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from 'date-fns';
-import { useUser, useFirestore, setDocumentNonBlocking, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, setDocumentNonBlocking, useCollection, useDoc, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { doc, collection, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Info } from 'lucide-react';
+import { Info, Trash2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 const dayOptions = [0, 10, 15, 20, 30];
 
@@ -122,6 +133,22 @@ function MembersList() {
         setIsSubmitting(false);
     };
 
+    const handleDeleteMember = (participantId: string) => {
+        if (!firestore || !(user as User)?.isAdmin) {
+            toast({ title: "Permission Denied", description: "You are not authorized to delete members.", variant: "destructive" });
+            return;
+        }
+        
+        const roommateDocRef = doc(firestore, 'roommates', participantId);
+        const participationDocRef = doc(firestore, `monthlyPlans/${monthId}/participations`, participantId);
+
+        // Non-blocking deletions
+        deleteDocumentNonBlocking(roommateDocRef);
+        deleteDocumentNonBlocking(participationDocRef);
+
+        toast({ title: "Member Deleted", description: "The member has been removed." });
+    };
+
     const getInitials = (name: string | null | undefined) => {
         if (!name) return "U";
         const names = name.split(' ');
@@ -213,14 +240,38 @@ function MembersList() {
                                     )}
                                 </TableCell>
                                 <TableCell className="text-right">
-                                    <Button
-                                        size="sm"
-                                        onClick={() => handleSaveChanges(p)}
-                                        disabled={isSubmitting || !canEdit(p.id)}
-                                        className="w-full sm:w-auto"
-                                    >
-                                        Save
-                                    </Button>
+                                    <div className="flex items-center justify-end gap-2">
+                                        <Button
+                                            size="sm"
+                                            onClick={() => handleSaveChanges(p)}
+                                            disabled={isSubmitting || !canEdit(p.id)}
+                                            className="w-full sm:w-auto"
+                                        >
+                                            Save
+                                        </Button>
+                                        {(user as User)?.isAdmin && user?.uid !== p.id && (
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="destructive" size="icon">
+                                                        <Trash2 className="h-4 w-4" />
+                                                        <span className="sr-only">Delete Member</span>
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This action cannot be undone. This will permanently delete {p.name}'s account and participation data.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDeleteMember(p.id)}>Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        )}
+                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))}
@@ -234,5 +285,3 @@ function MembersList() {
 export default function MembersClient() {
     return <MembersList />;
 }
-
-    
