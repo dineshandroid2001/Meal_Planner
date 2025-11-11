@@ -2,6 +2,8 @@ import type { User as FirebaseUser } from 'firebase/auth';
 import type { Timestamp } from 'firebase/firestore';
 
 export interface User extends FirebaseUser {
+  id?: string;
+  name?: string;
   isAdmin?: boolean;
 }
 

@@ -42,8 +42,8 @@ service cloud.firestore {
         return isOwner(roommateId) && resource != null;
       }
 
-      allow get: if isOwner(roommateId);
-      allow list: if false; // Prevent listing of all roommates for privacy.
+      allow get: if request.auth != null;
+      allow list: if request.auth != null;
       allow create: if isOwner(roommateId) && request.resource.data.id == roommateId;
       allow update: if isExistingOwner(roommateId) && request.resource.data.id == resource.data.id;
       allow delete: if isExistingOwner(roommateId);

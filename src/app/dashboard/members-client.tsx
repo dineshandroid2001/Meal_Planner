@@ -8,9 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format } from 'date-fns';
 import { useUser, useFirestore, setDocumentNonBlocking, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { doc, collection } from 'firebase/firestore';
+import { doc, collection, getDocs, query, where } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -22,48 +22,66 @@ export default function MembersClient() {
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [participants, setParticipants] = useState<Participant[]>([]);
+    const [isLoading, setIsLoading] = useState(true);
 
     const today = new Date();
     const monthId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 
     const planDocRef = useMemoFirebase(() => firestore ? doc(firestore, 'monthlyPlans', monthId) : null, [firestore, monthId]);
     const { data: monthlyPlan, isLoading: isPlanLoading } = useDoc<MonthlyPlan>(planDocRef);
-    
-    const usersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
-    const { data: allUsers, isLoading: areUsersLoading } = useCollection<User>(usersCollectionRef);
 
     const participantsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `monthlyPlans/${monthId}/participants`) : null, [firestore, monthId]);
-    const { data: participantsData, isLoading: areParticipantsLoading } = useCollection<Participant>(participantsCollectionRef);
-    
-    const costPerDay = (monthlyPlan?.monthlyExpense || 0) / 30;
+    const { data: participantsData, isLoading: areParticipantsLoading } = useCollection<Omit<Participant, 'name' | 'photoURL'>>(participantsCollectionRef);
 
     useEffect(() => {
-        if (areUsersLoading || areParticipantsLoading || isPlanLoading) return;
+        const fetchParticipantDetails = async () => {
+            if (!firestore || areParticipantsLoading || isPlanLoading) return;
+            setIsLoading(true);
+            const costPerDay = (monthlyPlan?.monthlyExpense || 0) / 30;
 
-        const effectiveParticipants = allUsers?.map(u => {
-            const participantData = participantsData?.find(p => p.id === u.uid);
-            if (participantData) {
-                return { ...participantData, cost: participantData.days * costPerDay };
-            }
-            return {
-                id: u.uid,
-                name: u.displayName,
-                photoURL: u.photoURL,
-                days: 0,
-                cost: 0,
-                lastUpdatedAt: new Date(),
-                lastUpdatedBy: 'System',
-            };
-        }) || [];
-        setParticipants(effectiveParticipants);
+            const allRoommates = await getDocs(collection(firestore, 'roommates'));
+            const roommatesMap = new Map(allRoommates.docs.map(d => [d.id, d.data() as User]));
 
-    }, [allUsers, participantsData, isPlanLoading, areUsersLoading, areParticipantsLoading, costPerDay]);
+            const currentParticipants = participantsData?.map(p => {
+                const roommate = roommatesMap.get(p.id);
+                return {
+                    ...p,
+                    name: roommate?.displayName || 'Unknown',
+                    photoURL: roommate?.photoURL || null,
+                    cost: p.days * costPerDay,
+                };
+            }) || [];
+            
+            // Add non-participating roommates
+            const participatingIds = new Set(currentParticipants.map(p => p.id));
+            roommatesMap.forEach((roommate, id) => {
+                if (!participatingIds.has(id)) {
+                    currentParticipants.push({
+                        id: id,
+                        name: roommate.displayName,
+                        photoURL: roommate.photoURL,
+                        days: 0,
+                        cost: 0,
+                        lastUpdatedAt: new Date(),
+                        lastUpdatedBy: 'System',
+                    });
+                }
+            });
+
+            setParticipants(currentParticipants);
+            setIsLoading(false);
+        };
+
+        fetchParticipantDetails();
+    }, [firestore, participantsData, monthlyPlan, areParticipantsLoading, isPlanLoading]);
+
 
     const handleDaysChange = (participantId: string, newDays: string) => {
         const days = parseInt(newDays, 10);
-        setParticipants(prev => prev.map(p => 
-            p.id === participantId 
-            ? { ...p, days: days, cost: days * costPerDay } 
+        const costPerDay = (monthlyPlan?.monthlyExpense || 0) / 30;
+        setParticipants(prev => prev.map(p =>
+            p.id === participantId
+            ? { ...p, days: days, cost: days * costPerDay }
             : p
         ));
     };
@@ -77,12 +95,14 @@ export default function MembersClient() {
         try {
             const participantDocRef = doc(firestore, `monthlyPlans/${monthId}/participants`, participant.id);
 
+            const { name, photoURL, cost, ...participantToSave } = participant;
+
             const updatedParticipant = {
-                ...participant,
+                ...participantToSave,
                 lastUpdatedAt: new Date(),
                 lastUpdatedBy: user.displayName || user.email || 'Unknown User',
             };
-            
+
             setDocumentNonBlocking(participantDocRef, updatedParticipant, { merge: true });
 
             toast({ title: "Success", description: `${participant.name}'s plan updated.` });
@@ -103,7 +123,7 @@ export default function MembersClient() {
         return name[0];
     };
 
-    if (areUsersLoading || areParticipantsLoading || isPlanLoading) {
+    if (isLoading) {
         return (
             <div className="space-y-4">
                 {[...Array(3)].map((_, i) => (
@@ -174,8 +194,8 @@ export default function MembersClient() {
                                 </div>
                             </TableCell>
                             <TableCell className="text-right">
-                                <Button 
-                                    size="sm" 
+                                <Button
+                                    size="sm"
                                     onClick={() => handleSaveChanges(p)}
                                     disabled={isSubmitting || (user?.uid !== p.id && !(user as User)?.isAdmin)}
                                 >

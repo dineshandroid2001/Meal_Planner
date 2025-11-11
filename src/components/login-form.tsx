@@ -28,7 +28,7 @@ export default function LoginForm() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      const userDocRef = doc(firestore, 'users', user.uid);
+      const userDocRef = doc(firestore, 'roommates', user.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists()) {
@@ -36,8 +36,8 @@ export default function LoginForm() {
         const isAdmin = !appConfigDoc.exists();
 
         setDocumentNonBlocking(userDocRef, {
-          uid: user.uid,
-          displayName: user.displayName,
+          id: user.uid,
+          name: user.displayName,
           email: user.email,
           photoURL: user.photoURL,
           isAdmin: isAdmin,
