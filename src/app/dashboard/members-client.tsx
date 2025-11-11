@@ -8,9 +8,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format } from 'date-fns';
 import { useUser, useFirestore, setDocumentNonBlocking, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { doc, collection, getDocs, query, where } from 'firebase/firestore';
+import { doc, collection, getDocs, query, where, getDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
-import { Tooltip, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -30,34 +30,44 @@ export default function MembersClient() {
     const planDocRef = useMemoFirebase(() => firestore ? doc(firestore, 'monthlyPlans', monthId) : null, [firestore, monthId]);
     const { data: monthlyPlan, isLoading: isPlanLoading } = useDoc<MonthlyPlan>(planDocRef);
 
-    const participantsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `monthlyPlans/${monthId}/participants`) : null, [firestore, monthId]);
+    const participantsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `monthlyPlans/${monthId}/participations`) : null, [firestore, monthId]);
     const { data: participantsData, isLoading: areParticipantsLoading } = useCollection<Omit<Participant, 'name' | 'photoURL'>>(participantsCollectionRef);
 
     useEffect(() => {
         const fetchParticipantDetails = async () => {
-            if (!firestore || areParticipantsLoading || isPlanLoading) return;
+            if (!firestore || areParticipantsLoading || !participantsData) {
+                setIsLoading(areParticipantsLoading);
+                return;
+            }
             setIsLoading(true);
+
             const costPerDay = (monthlyPlan?.monthlyExpense || 0) / 30;
 
-            const allRoommates = await getDocs(collection(firestore, 'roommates'));
-            const roommatesMap = new Map(allRoommates.docs.map(d => [d.id, d.data() as User]));
-
-            const currentParticipants = participantsData?.map(p => {
-                const roommate = roommatesMap.get(p.id);
+            const participantPromises = participantsData.map(async (p) => {
+                const roommateDocRef = doc(firestore, 'roommates', p.id);
+                const roommateSnap = await getDoc(roommateDocRef);
+                const roommate = roommateSnap.data() as User;
                 return {
                     ...p,
                     name: roommate?.displayName || 'Unknown',
                     photoURL: roommate?.photoURL || null,
                     cost: p.days * costPerDay,
                 };
-            }) || [];
+            });
             
-            // Add non-participating roommates
-            const participatingIds = new Set(currentParticipants.map(p => p.id));
-            roommatesMap.forEach((roommate, id) => {
-                if (!participatingIds.has(id)) {
-                    currentParticipants.push({
-                        id: id,
+            const fetchedParticipants = await Promise.all(participantPromises);
+            
+            const allRoommatesQuery = query(collection(firestore, 'roommates'));
+            const allRoommatesSnap = await getDocs(allRoommatesQuery);
+            
+            const allRoommates = allRoommatesSnap.docs.map(d => ({ id: d.id, ...d.data() } as User & {id: string}));
+
+            const participatingIds = new Set(fetchedParticipants.map(p => p.id));
+            
+            allRoommates.forEach(roommate => {
+                if (!participatingIds.has(roommate.id)) {
+                    fetchedParticipants.push({
+                        id: roommate.id,
                         name: roommate.displayName,
                         photoURL: roommate.photoURL,
                         days: 0,
@@ -68,7 +78,8 @@ export default function MembersClient() {
                 }
             });
 
-            setParticipants(currentParticipants);
+
+            setParticipants(fetchedParticipants);
             setIsLoading(false);
         };
 
@@ -93,7 +104,7 @@ export default function MembersClient() {
         }
         setIsSubmitting(true);
         try {
-            const participantDocRef = doc(firestore, `monthlyPlans/${monthId}/participants`, participant.id);
+            const participantDocRef = doc(firestore, `monthlyPlans/${monthId}/participations`, participant.id);
 
             const { name, photoURL, cost, ...participantToSave } = participant;
 
@@ -181,8 +192,9 @@ export default function MembersClient() {
                             </TableCell>
                             <TableCell>₹{p.cost.toFixed(2)}</TableCell>
                             <TableCell>
+                                {p.lastUpdatedAt && (
                                 <div className="flex items-center gap-2">
-                                    {p.lastUpdatedAt && format(new Date(p.lastUpdatedAt), 'PPp')}
+                                    {format(new Date(p.lastUpdatedAt), 'PPp')}
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <Info className="h-4 w-4 text-muted-foreground" />
@@ -192,6 +204,7 @@ export default function MembersClient() {
                                         </TooltipContent>
                                     </Tooltip>
                                 </div>
+                                )}
                             </TableCell>
                             <TableCell className="text-right">
                                 <Button
