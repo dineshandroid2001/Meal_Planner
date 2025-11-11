@@ -25,6 +25,7 @@ import {
   DialogTitle,
   DialogTrigger,
   DialogClose,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Trash2 } from 'lucide-react';
@@ -383,3 +384,4 @@ export default function ReimbursementClient() {
     );
 }
 
+    
