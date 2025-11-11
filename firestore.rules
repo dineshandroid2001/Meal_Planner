@@ -1,0 +1,37 @@
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Allow authenticated users to read and write to their own user document
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // Allow authenticated users to read all user documents (for dashboard)
+    match /users/{userId} {
+      allow get, list: if request.auth != null;
+    }
+
+    // Allow authenticated users to manage monthly plans
+    match /monthlyPlans/{monthId} {
+      allow get, create, update: if request.auth != null;
+
+      // Allow authenticated users to manage their participation
+      match /participants/{participantId} {
+        allow read, write: if request.auth != null;
+      }
+    }
+    
+    // Allow authenticated users to manage reimbursement requests
+    match /reimbursements/{reimbursementId} {
+        allow read, create, update, delete: if request.auth != null;
+    }
+
+    // Allow admin configuration
+    match /app-config/admin {
+        allow read, write: if request.auth != null;
+    }
+  }
+}
