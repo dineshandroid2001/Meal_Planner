@@ -55,6 +55,22 @@ export default function ReimbursementClient() {
         return new Map(allRoommates.map(r => [r.id, r.name || r.displayName || 'Unknown']));
     }, [allRoommates]);
 
+    const reimbursementSummary = useMemo(() => {
+        if (!reimbursements) return [];
+    
+        const summary = new Map<string, number>();
+        reimbursements.forEach(req => {
+            const currentTotal = summary.get(req.roommateId) || 0;
+            summary.set(req.roommateId, currentTotal + req.amount);
+        });
+    
+        return Array.from(summary.entries()).map(([roommateId, totalAmount]) => ({
+            roommateId,
+            roommateName: roommatesMap.get(roommateId) || 'Unknown',
+            totalAmount,
+        }));
+    }, [reimbursements, roommatesMap]);
+
 
     const fileToDataUri = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -97,19 +113,17 @@ export default function ReimbursementClient() {
                 aiAlignment: aiResult.alignment,
                 aiDiscrepancies: aiResult.flaggedDiscrepancies,
             };
-
-            const timestamp = Date.now();
             
             if (receiptDataUri && receiptFile) {
-                const receiptRef = ref(storage, `reimbursements/${user.uid}/${timestamp}_receipt`);
-                const uploadTask = await uploadString(receiptRef, receiptDataUri, 'data_url');
-                newRequest.receiptUrl = await getDownloadURL(uploadTask.ref);
+                const receiptRef = ref(storage, `reimbursements/${user.uid}/${Date.now()}_receipt`);
+                const receiptUrl = await getDownloadURL(await uploadString(receiptRef, receiptDataUri, 'data_url'));
+                newRequest.receiptUrl = receiptUrl;
             }
 
             if (paymentScreenshotDataUri && paymentFile) {
-                const paymentRef = ref(storage, `reimbursements/${user.uid}/${timestamp}_payment`);
-                const uploadTask = await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url');
-                newRequest.paymentUrl = await getDownloadURL(uploadTask.ref);
+                const paymentRef = ref(storage, `reimbursements/${user.uid}/${Date.now()}_payment`);
+                const paymentUrl = await getDownloadURL(await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url'));
+                newRequest.paymentUrl = paymentUrl;
             }
 
 
@@ -181,96 +195,123 @@ export default function ReimbursementClient() {
                 </form>
             </Card>
 
-            <Card className="lg:col-span-4">
-                <CardHeader>
-                    <CardTitle>Reimbursement History</CardTitle>
-                    <CardDescription>View the status of all reimbursement requests.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>User</TableHead>
-                                <TableHead>Amount</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Status</TableHead>
-                                <TableHead className="text-right">Details</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {isLoading && (
+            <div className="lg:col-span-4 grid gap-4 auto-rows-max">
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Reimbursement Summary</CardTitle>
+                        <CardDescription>Total amounts requested by each roommate.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
                                 <TableRow>
-                                    <TableCell colSpan={5} className="h-24 text-center">
-                                        <Skeleton className="h-8 w-full" />
-                                    </TableCell>
+                                    <TableHead>User</TableHead>
+                                    <TableHead className="text-right">Total Amount</TableHead>
                                 </TableRow>
-                            )}
-                            {reimbursements?.map(req => (
-                                <TableRow key={req.id}>
-                                    <TableCell>{roommatesMap.get(req.roommateId) || 'Unknown'}</TableCell>
-                                    <TableCell>₹{req.amount.toFixed(2)}</TableCell>
-                                    <TableCell>{formatDate(req.submittedAt)}</TableCell>
-                                    <TableCell>
-                                        <Badge variant={req.status === 'pending' ? 'secondary' : req.status === 'approved' ? 'default' : 'destructive'}>
-                                            {req.status}
-                                        </Badge>
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                    <Dialog>
-                                        <DialogTrigger asChild>
-                                            <Button variant="outline" size="sm">View</Button>
-                                        </DialogTrigger>
-                                        <DialogContent className="sm:max-w-[600px]">
-                                            <DialogHeader>
-                                            <DialogTitle>Reimbursement Details</DialogTitle>
-                                            <DialogDescription>
-                                                Submitted by {roommatesMap.get(req.roommateId) || 'Unknown'} on {formatDialogDate(req.submittedAt)}
-                                            </DialogDescription>
-                                            </DialogHeader>
-                                            <div className="grid gap-4 py-4">
-                                                <div className="font-semibold">AI Analysis</div>
-                                                <div className="text-sm p-3 bg-muted/50 rounded-lg space-y-2">
-                                                    <p><strong>Summary:</strong> {req.aiSummary}</p>
-                                                    <p><strong>Alignment:</strong> {req.aiAlignment}</p>
-                                                    <p><strong>Discrepancies:</strong> {req.aiDiscrepancies || 'None'}</p>
-                                                </div>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    {req.receiptUrl && (
-                                                        <div>
-                                                            <Label>Receipt</Label>
-                                                            <Image src={req.receiptUrl} alt="Receipt" width={250} height={400} className="rounded-md object-cover" />
-                                                        </div>
-                                                    )}
-                                                    {req.paymentUrl && (
-                                                        <div>
-                                                            <Label>Payment</Label>
-                                                            <Image src={req.paymentUrl} alt="Payment" width={250} height={400} className="rounded-md object-cover" />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                {(user as User)?.isAdmin && req.status === 'pending' && (
-                                                    <div className="flex gap-2 justify-end">
-                                                        <Button variant="destructive" size="sm" disabled>Reject</Button>
+                            </TableHeader>
+                            <TableBody>
+                                {isLoading ? (
+                                    <TableRow>
+                                        <TableCell colSpan={2} className="h-24 text-center">
+                                            <Skeleton className="h-8 w-full" />
+                                        </TableCell>
+                                    </TableRow>
+                                ) : reimbursementSummary.map(summary => (
+                                    <TableRow key={summary.roommateId}>
+                                        <TableCell className="font-medium">{summary.roommateName}</TableCell>
+                                        <TableCell className="text-right">₹{summary.totalAmount.toFixed(2)}</TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
 
-                                                        <Button size="sm" disabled>Approve</Button>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </DialogContent>
-                                    </Dialog>
-                                    </TableCell>
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Reimbursement History</CardTitle>
+                        <CardDescription>View the status of all reimbursement requests.</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                        <Table>
+                            <TableHeader>
+                                <TableRow>
+                                    <TableHead>User</TableHead>
+                                    <TableHead>Amount</TableHead>
+                                    <TableHead>Date</TableHead>
+                                    <TableHead>Status</TableHead>
+                                    <TableHead className="text-right">Details</TableHead>
                                 </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                </CardContent>
-            </Card>
+                            </TableHeader>
+                            <TableBody>
+                                {isLoading && (
+                                    <TableRow>
+                                        <TableCell colSpan={5} className="h-24 text-center">
+                                            <Skeleton className="h-8 w-full" />
+                                        </TableCell>
+                                    </TableRow>
+                                )}
+                                {reimbursements?.map(req => (
+                                    <TableRow key={req.id}>
+                                        <TableCell>{roommatesMap.get(req.roommateId) || 'Unknown'}</TableCell>
+                                        <TableCell>₹{req.amount.toFixed(2)}</TableCell>
+                                        <TableCell>{formatDate(req.submittedAt)}</TableCell>
+                                        <TableCell>
+                                            <Badge variant={req.status === 'pending' ? 'secondary' : req.status === 'approved' ? 'default' : 'destructive'}>
+                                                {req.status}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                        <Dialog>
+                                            <DialogTrigger asChild>
+                                                <Button variant="outline" size="sm">View</Button>
+                                            </DialogTrigger>
+                                            <DialogContent className="sm:max-w-[600px]">
+                                                <DialogHeader>
+                                                <DialogTitle>Reimbursement Details</DialogTitle>
+                                                <DialogDescription>
+                                                    Submitted by {roommatesMap.get(req.roommateId) || 'Unknown'} on {formatDialogDate(req.submittedAt)}
+                                                </DialogDescription>
+                                                </DialogHeader>
+                                                <div className="grid gap-4 py-4">
+                                                    <div className="font-semibold">AI Analysis</div>
+                                                    <div className="text-sm p-3 bg-muted/50 rounded-lg space-y-2">
+                                                        <p><strong>Summary:</strong> {req.aiSummary}</p>
+                                                        <p><strong>Alignment:</strong> {req.aiAlignment}</p>
+                                                        <p><strong>Discrepancies:</strong> {req.aiDiscrepancies || 'None'}</p>
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        {req.receiptUrl && (
+                                                            <div>
+                                                                <Label>Receipt</Label>
+                                                                <Image src={req.receiptUrl} alt="Receipt" width={250} height={400} className="rounded-md object-cover" />
+                                                            </div>
+                                                        )}
+                                                        {req.paymentUrl && (
+                                                            <div>
+                                                                <Label>Payment</Label>
+                                                                <Image src={req.paymentUrl} alt="Payment" width={250} height={400} className="rounded-md object-cover" />
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                    {(user as User)?.isAdmin && req.status === 'pending' && (
+                                                        <div className="flex gap-2 justify-end">
+                                                            <Button variant="destructive" size="sm" disabled>Reject</Button>
+
+                                                            <Button size="sm" disabled>Approve</Button>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </DialogContent>
+                                        </Dialog>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }
-
-
-
-    
-
-    
