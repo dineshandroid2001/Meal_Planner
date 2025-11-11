@@ -8,7 +8,9 @@ export default function DashboardPage() {
     return (
         <div className="grid auto-rows-max items-start gap-4 md:gap-8">
             <Suspense fallback={
-                <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                    <Skeleton className="h-28 w-full" />
+                    <Skeleton className="h-28 w-full" />
                     <Skeleton className="h-28 w-full" />
                     <Skeleton className="h-28 w-full" />
                     <Skeleton className="h-28 w-full" />

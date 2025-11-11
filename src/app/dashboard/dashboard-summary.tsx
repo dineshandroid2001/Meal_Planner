@@ -3,7 +3,7 @@
 
 import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { DollarSign, Users, CreditCard, CheckCircle } from 'lucide-react';
+import { DollarSign, Users, CreditCard, CheckCircle, TrendingUp } from 'lucide-react';
 import { useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
 import { doc, collection } from 'firebase/firestore';
 import type { MonthlyPlan, Participant, ReimbursementRequest } from '@/lib/types';
@@ -35,18 +35,22 @@ export default function DashboardSummary() {
         }, { totalPendingReimbursements: 0, totalApprovedReimbursements: 0 });
     }, [reimbursementsData]);
 
-    const totalAllocatedCost = useMemo(() => {
+    const grossAllocatedCost = useMemo(() => {
         if (!participantsData || !monthlyPlan) return 0;
         const costPerDay = (monthlyPlan.monthlyExpense || 0) / 30;
-        const grossAllocatedCost = participantsData.reduce((acc, p) => acc + (p.days * costPerDay), 0);
+        return participantsData.reduce((acc, p) => acc + (p.days * costPerDay), 0);
+    }, [participantsData, monthlyPlan]);
+
+    const netAllocatedCost = useMemo(() => {
         return grossAllocatedCost - totalApprovedReimbursements;
-    }, [participantsData, monthlyPlan, totalApprovedReimbursements]);
+    }, [grossAllocatedCost, totalApprovedReimbursements]);
     
     const isLoading = isPlanLoading || areParticipantsLoading || areReimbursementsLoading;
 
     if (isLoading) {
         return (
-            <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+                <Skeleton className="h-28 w-full" />
                 <Skeleton className="h-28 w-full" />
                 <Skeleton className="h-28 w-full" />
                 <Skeleton className="h-28 w-full" />
@@ -57,7 +61,7 @@ export default function DashboardSummary() {
 
 
     return (
-        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-2 xl:grid-cols-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                     <CardTitle className="text-sm font-medium">Total Monthly Expense</CardTitle>
@@ -70,12 +74,22 @@ export default function DashboardSummary() {
             </Card>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Net Allocated Cost</CardTitle>
+                    <CardTitle className="text-sm font-medium">Gross Allocated Cost</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                    <div className="text-2xl font-bold">₹{grossAllocatedCost.toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground">Total to be collected before reimbursements.</p>
+                </CardContent>
+            </Card>
+            <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Balance to Collect</CardTitle>
                     <Users className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">₹{totalAllocatedCost.toFixed(2)}</div>
-                    <p className="text-xs text-muted-foreground">Cost after approved reimbursements.</p>
+                    <div className="text-2xl font-bold">₹{netAllocatedCost.toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground">Net cost after approved reimbursements.</p>
                 </CardContent>
             </Card>
             <Card>
