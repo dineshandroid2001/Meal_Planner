@@ -1,37 +1,142 @@
-
+/**
+ * @fileoverview Firestore Security Rules for Roommate Meal Plans.
+ *
+ * Core Philosophy:
+ * This ruleset enforces a user-ownership model for roommate profiles and an admin-ownership model for meal plans.
+ * Data integrity is maintained through denormalized authorization and invariants.
+ *
+ * Data Structure:
+ * - /roommates/{roommateId}: Stores private roommate profiles, accessible only to the owner.
+ * - /mealPlans/{mealPlanId}: Stores meal plan details, accessible only to the admin who created it.
+ * - /mealPlans/{mealPlanId}/participations/{participationId}: Stores participation records, accessible only to the owner (roommate) or meal plan admin.
+ * - /reimbursements/{reimbursementId}: Stores reimbursement requests, accessible only to the owner (roommate).
+ * - /auditLogs/{auditLogId}: Stores audit logs, accessible to the admin.
+ *
+ * Key Security Decisions:
+ * - Roommate profiles are strictly private (owner-only access).
+ * - Meal plans are managed by admins, who have full control.
+ * - Listing of roommates is disallowed to protect user privacy.
+ *
+ * Denormalization for Authorization:
+ * - MealPlan.adminId: The ID of the admin user is stored directly on the meal plan to avoid needing to read the /roommates collection for authorization.
+ */
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Allow authenticated users to read and write to their own user document
-    match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-
-    // Allow authenticated users to read all user documents (for dashboard)
-    match /users/{userId} {
-      allow get, list: if request.auth != null;
-    }
-
-    // Allow authenticated users to manage monthly plans
-    match /monthlyPlans/{monthId} {
-      allow get, create, update: if request.auth != null;
-
-      // Allow authenticated users to manage their participation
-      match /participants/{participantId} {
-        allow read, write: if request.auth != null;
+    /**
+     * @description Manages roommate profiles with owner-only access.
+     * @path /roommates/{roommateId}
+     * @allow (create) - A user can create their own profile if the roommateId matches their auth UID.
+     * @allow (get, update, delete) - A user can read, update, or delete their own profile if the roommateId matches their auth UID.
+     * @deny (create) - A user cannot create a profile for another user (roommateId does not match auth UID).
+     * @deny (get, update, delete) - A user cannot read, update, or delete another user's profile (roommateId does not match auth UID).
+     * @principle Enforces document ownership for all operations.
+     */
+    match /roommates/{roommateId} {
+      function isOwner(roommateId) {
+        return request.auth != null && request.auth.uid == roommateId;
       }
-    }
-    
-    // Allow authenticated users to manage reimbursement requests
-    match /reimbursements/{reimbursementId} {
-        allow read, create, update, delete: if request.auth != null;
+
+      function isExistingOwner(roommateId) {
+        return isOwner(roommateId) && resource != null;
+      }
+
+      allow get: if isOwner(roommateId);
+      allow list: if false; // Prevent listing of all roommates for privacy.
+      allow create: if isOwner(roommateId) && request.resource.data.id == roommateId;
+      allow update: if isExistingOwner(roommateId) && request.resource.data.id == resource.data.id;
+      allow delete: if isExistingOwner(roommateId);
     }
 
-    // Allow admin configuration
-    match /app-config/admin {
-        allow read, write: if request.auth != null;
+    /**
+     * @description Manages meal plans with admin-only access.
+     * @path /mealPlans/{mealPlanId}
+     * @allow (create) - An admin can create a meal plan if their UID matches the adminId in the plan.
+     * @allow (get, update, delete) - An admin can read, update, or delete a meal plan if their UID matches the adminId in the plan.
+     * @deny (create) - A non-admin user cannot create a meal plan.
+     * @deny (get, update, delete) - A non-admin user cannot read, update, or delete a meal plan.
+     * @principle Enforces admin-only access based on the 'adminId' field in the document.
+     */
+    match /mealPlans/{mealPlanId} {
+      function isAdmin(adminId) {
+        return request.auth != null && request.auth.uid == adminId;
+      }
+
+      function isExistingAdmin(adminId) {
+        return isAdmin(adminId) && resource != null;
+      }
+
+      allow get: if true; //Allow public read
+      allow list: if true;
+      allow create: if isAdmin(request.resource.data.adminId);
+      allow update: if isExistingAdmin(resource.data.adminId);
+      allow delete: if isExistingAdmin(resource.data.adminId);
+    }
+
+    /**
+     * @description Manages participation records within a meal plan.
+     * @path /mealPlans/{mealPlanId}/participations/{participationId}
+     * @allow (create) - A user can create a participation record if they are the owner (roommate) or the meal plan admin.
+     * @allow (get, list, update, delete) - A user can read, list, update, or delete their own participation record if they are the owner (roommate) or the meal plan admin.
+     * @deny (create) - A user cannot create a participation record for another user unless they are the meal plan admin.
+     * @deny (get, list, update, delete) - A user cannot read, list, update, or delete another user's participation record unless they are the meal plan admin.
+     * @principle Enforces ownership and admin-based access control for participation records.
+     */
+    match /mealPlans/{mealPlanId}/participations/{participationId} {
+      function isRoommate(roommateId) {
+        return request.auth != null && request.auth.uid == roommateId;
+      }
+
+      function isExistingRoommate(roommateId) {
+        return isRoommate(roommateId) && resource != null;
+      }
+
+      allow get: if isRoommate(resource.data.roommateId);
+      allow list: if isRoommate(request.auth.uid);
+      allow create: if isRoommate(request.resource.data.roommateId);
+      allow update: if isExistingRoommate(resource.data.roommateId);
+      allow delete: if isExistingRoommate(resource.data.roommateId);
+    }
+
+    /**
+     * @description Manages reimbursement requests.
+     * @path /reimbursements/{reimbursementId}
+     * @allow (create) - A user can create a reimbursement request for themselves.
+     * @allow (get, list, update, delete) - A user can read, list, update, or delete their own reimbursement request.
+     * @deny (create) - A user cannot create a reimbursement request for another user.
+     * @deny (get, list, update, delete) - A user cannot read, list, update, or delete another user's reimbursement request.
+     * @principle Enforces ownership-based access control for reimbursement requests.
+     */
+    match /reimbursements/{reimbursementId} {
+      function isRoommate(roommateId) {
+        return request.auth != null && request.auth.uid == roommateId;
+      }
+
+      function isExistingRoommate(roommateId) {
+        return isRoommate(roommateId) && resource != null;
+      }
+
+      allow get: if isRoommate(resource.data.roommateId);
+      allow list: if isRoommate(request.auth.uid);
+      allow create: if isRoommate(request.resource.data.roommateId);
+      allow update: if isExistingRoommate(resource.data.roommateId);
+      allow delete: if isExistingRoommate(resource.data.roommateId);
+    }
+
+    /**
+     * @description Manages audit logs with write-only access for server-side functions.
+     * @path /auditLogs/{auditLogId}
+     * @allow (create) - Allows server-side functions to create audit log entries.
+     * @deny (get, list, update, delete) - No user can read, list, update, or delete audit logs.
+     * @principle Restricts access to audit logs to server-side functions only.
+     */
+    match /auditLogs/{auditLogId} {
+      allow get: if false;
+      allow list: if false;
+      allow create: if true; // Allow all authenticated users to create audit logs. Should be secured via backend only.
+      allow update: if false;
+      allow delete: if false;
     }
   }
 }

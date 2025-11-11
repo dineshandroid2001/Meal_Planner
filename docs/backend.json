@@ -1,0 +1,283 @@
+{
+  "entities": {
+    "Roommate": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Roommate",
+      "type": "object",
+      "description": "Represents a roommate participating in the meal plan.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Roommate entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the roommate."
+        },
+        "email": {
+          "type": "string",
+          "description": "The email address of the roommate.",
+          "format": "email"
+        },
+        "isAdmin": {
+          "type": "boolean",
+          "description": "Indicates whether the roommate is an admin."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "isAdmin"
+      ]
+    },
+    "MealPlan": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "MealPlan",
+      "type": "object",
+      "description": "Represents a monthly meal plan.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the MealPlan entity."
+        },
+        "month": {
+          "type": "string",
+          "description": "The month for which the meal plan is applicable (e.g., 'January 2024')."
+        },
+        "totalExpense": {
+          "type": "number",
+          "description": "The total monthly food expense set by the admin."
+        },
+        "adminId": {
+          "type": "string",
+          "description": "Reference to Roommate (admin) who is managing the plan. (Relationship: Roommate 1:N MealPlan)"
+        }
+      },
+      "required": [
+        "id",
+        "month",
+        "totalExpense",
+        "adminId"
+      ]
+    },
+    "Participation": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Participation",
+      "type": "object",
+      "description": "Represents a roommate's participation in a meal plan for a specific number of days.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Participation entity."
+        },
+        "roommateId": {
+          "type": "string",
+          "description": "Reference to the Roommate participating in the meal plan. (Relationship: Roommate 1:N Participation)"
+        },
+        "mealPlanId": {
+          "type": "string",
+          "description": "Reference to the MealPlan for which the roommate is participating. (Relationship: MealPlan 1:N Participation)"
+        },
+        "numberOfDays": {
+          "type": "number",
+          "description": "The number of days the roommate is participating in the meal plan."
+        },
+        "calculatedCost": {
+          "type": "number",
+          "description": "The calculated cost for the roommate based on the number of days and total expense."
+        }
+      },
+      "required": [
+        "id",
+        "roommateId",
+        "mealPlanId",
+        "numberOfDays",
+        "calculatedCost"
+      ]
+    },
+    "Reimbursement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Reimbursement",
+      "type": "object",
+      "description": "Represents a reimbursement request for groceries purchased by a roommate.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Reimbursement entity."
+        },
+        "roommateId": {
+          "type": "string",
+          "description": "Reference to the Roommate who purchased the groceries and needs to be reimbursed. (Relationship: Roommate 1:N Reimbursement)"
+        },
+        "amount": {
+          "type": "number",
+          "description": "The amount to be reimbursed."
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the groceries purchased."
+        },
+        "paymentScreenshotURL": {
+          "type": "string",
+          "description": "URL of the payment screenshot.",
+          "format": "uri"
+        },
+        "reimbursementDate": {
+          "type": "string",
+          "description": "The date when the reimbursement was requested.",
+          "format": "date-time"
+        },
+        "isReimbursed": {
+          "type": "boolean",
+          "description": "Indicates whether the reimbursement has been settled"
+        }
+      },
+      "required": [
+        "id",
+        "roommateId",
+        "amount",
+        "description",
+        "paymentScreenshotURL",
+        "reimbursementDate",
+        "isReimbursed"
+      ]
+    },
+    "AuditLog": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AuditLog",
+      "type": "object",
+      "description": "Represents an audit log entry for data modifications.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AuditLog entity."
+        },
+        "entityName": {
+          "type": "string",
+          "description": "The name of the entity that was modified (e.g., 'MealPlan', 'Participation')."
+        },
+        "entityId": {
+          "type": "string",
+          "description": "The ID of the specific entity record that was modified."
+        },
+        "modifiedBy": {
+          "type": "string",
+          "description": "Reference to the Roommate who made the modification. (Relationship: Roommate 1:N AuditLog)"
+        },
+        "modifiedDate": {
+          "type": "string",
+          "description": "The date and time when the modification was made.",
+          "format": "date-time"
+        },
+        "changes": {
+          "type": "string",
+          "description": "A JSON string representing the changes made to the entity (e.g., a diff of the old and new values)."
+        }
+      },
+      "required": [
+        "id",
+        "entityName",
+        "entityId",
+        "modifiedBy",
+        "modifiedDate",
+        "changes"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/roommates/{roommateId}",
+        "definition": {
+          "entityName": "Roommate",
+          "schema": {
+            "$ref": "#/backend/entities/Roommate"
+          },
+          "description": "Stores roommate profiles. Uses path-based ownership for security.",
+          "params": [
+            {
+              "name": "roommateId",
+              "description": "The unique identifier of the roommate."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/mealPlans/{mealPlanId}",
+        "definition": {
+          "entityName": "MealPlan",
+          "schema": {
+            "$ref": "#/backend/entities/MealPlan"
+          },
+          "description": "Stores meal plan details. Includes denormalized 'adminId' field for authorization independence.",
+          "params": [
+            {
+              "name": "mealPlanId",
+              "description": "The unique identifier of the meal plan."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/mealPlans/{mealPlanId}/participations/{participationId}",
+        "definition": {
+          "entityName": "Participation",
+          "schema": {
+            "$ref": "#/backend/entities/Participation"
+          },
+          "description": "Stores participation records for each roommate in a meal plan.",
+          "params": [
+            {
+              "name": "mealPlanId",
+              "description": "The unique identifier of the meal plan."
+            },
+            {
+              "name": "participationId",
+              "description": "The unique identifier of the participation record."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/reimbursements/{reimbursementId}",
+        "definition": {
+          "entityName": "Reimbursement",
+          "schema": {
+            "$ref": "#/backend/entities/Reimbursement"
+          },
+          "description": "Stores reimbursement requests from roommates.",
+          "params": [
+            {
+              "name": "reimbursementId",
+              "description": "The unique identifier of the reimbursement request."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/auditLogs/{auditLogId}",
+        "definition": {
+          "entityName": "AuditLog",
+          "schema": {
+            "$ref": "#/backend/entities/AuditLog"
+          },
+          "description": "Stores audit log entries for data modifications.",
+          "params": [
+            {
+              "name": "auditLogId",
+              "description": "The unique identifier of the audit log entry."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to manage roommate meal plans, reimbursements, and audit logs while prioritizing security, scalability, and ease of debugging. It adheres to the principles of Authorization Independence, Clarity of Intent, DBAC (Database-Based Access Control), QAPs (Rules are not Filters), and Invariants.\n\n**Authorization Independence:** To avoid hierarchical authorization dependencies and enable atomic operations, authorization context is denormalized. Specifically, the `Roommate`'s `isAdmin` status is denormalized into the `MealPlan` document as the `adminId` field, which allows security rules to be written without requiring `get()` calls to parent documents. The `roommateId` field is present in `Participation` and `Reimbursement` to establish the link between a `Roommate` and their participations and reimbursement records, which enables to write security rules based on the current logged in user without external `get()` calls.\n\n**Structural Segregation:** Data with different access needs are stored in separate collections. Private user data (Roommate profiles) are stored under `/roommates/{roommateId}`, while shared meal plan data resides in `/mealPlans/{mealPlanId}`. Reimbursement requests are located in `/reimbursements/{reimbursementId}` and Audit logs reside in `/auditLogs/{auditLogId}`. This simplifies security rules by ensuring all documents in a collection share the same security requirements.\n\n**Access Modeling:** Path-based ownership is used for private user data (`/roommates/{roommateId}`). For entities representing `User 1:N Entity` relationships, hierarchical paths are employed (e.g., `/mealPlans/{mealPlanId}/participations/{participationId}`). Collaborative data utilizes the implied Membership Map pattern for admin status via the `adminId` field in `MealPlan`. Global roles are avoided in favor of DBAC.\n\n**QAPs (Rules are not Filters):** The structure supports secure `list` operations by segregating data based on access needs and denormalizing authorization context. Admins can list meal plans they administer. Roommates can list their participation records and reimbursement requests. The absence of `get()` calls in rules ensures efficient and secure list operations.\n\n**Invariants:** The structure supports the integrity of ownership, timestamps, and denormalized data through server-side validation and Cloud Functions triggers. For example, a Cloud Function can be triggered to ensure that the `adminId` in a `MealPlan` matches a valid `roommateId` with `isAdmin: true` and all `Participation` and `Reimbursement` documents point to an existing `MealPlan`.\n"
+  }
+}
