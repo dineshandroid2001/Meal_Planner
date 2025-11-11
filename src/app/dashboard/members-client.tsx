@@ -98,12 +98,13 @@ function MembersList() {
         ));
     };
 
-    const handleSaveChanges = async (participant: Participant) => {
+    const handleSaveChanges = (participant: Participant) => {
         if (!user || !firestore) {
             toast({ title: "Not authenticated or DB not available", description: "You must be logged in.", variant: "destructive" });
             return;
         }
         setIsSubmitting(true);
+        
         try {
             const participantDocRef = doc(firestore, `monthlyPlans/${monthId}/participations`, participant.id);
 
@@ -118,10 +119,9 @@ function MembersList() {
             setDocumentNonBlocking(participantDocRef, updatedParticipant, { merge: true });
 
             toast({ title: "Success", description: `${participant.name}'s plan updated.` });
-        } catch (error) {
-            console.error(error);
-            toast({ title: "Error", description: "Failed to save changes.", variant: "destructive" });
         } finally {
+            // We don't want to wait for the result, so we'll set submitting to false immediately.
+            // Errors will be caught by the global error handler.
             setIsSubmitting(false);
         }
     };
