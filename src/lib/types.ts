@@ -37,7 +37,7 @@ export type MonthlyPlan = {
 
 export type ReimbursementRequest = {
   id: string;
-  userId: string;
+  roommateId: string;
   userName: string;
   amount: number;
   description: string;
@@ -49,3 +49,6 @@ export type ReimbursementRequest = {
   aiAlignment: string;
   aiDiscrepancies: string;
 };
+
+
+    

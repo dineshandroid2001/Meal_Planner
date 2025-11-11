@@ -77,8 +77,8 @@ export default function ReimbursementClient() {
                 description,
             });
 
-            const newRequest: Omit<ReimbursementRequest, 'id'> = {
-                userId: user.uid,
+            const newRequest: Partial<ReimbursementRequest> = {
+                roommateId: user.uid,
                 userName: user.displayName || 'Unknown',
                 amount: parseFloat(amount),
                 description,
@@ -140,11 +140,11 @@ export default function ReimbursementClient() {
                         <Input id="amount" type="number" placeholder="1250.00" value={amount} onChange={e => setAmount(e.target.value)} required />
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="receipt">Receipt Photo (Optional)</Label>
+                        <Label htmlFor="receipt">Receipt Photo</Label>
                         <Input id="receipt" type="file" accept="image/*" onChange={e => setReceiptFile(e.target.files?.[0] || null)} />
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="payment">Payment Screenshot (Optional)</Label>
+                        <Label htmlFor="payment">Payment Screenshot</Label>
                         <Input id="payment" type="file" accept="image/*" onChange={e => setPaymentFile(e.target.files?.[0] || null)} />
                     </div>
                 </CardContent>
@@ -244,3 +244,6 @@ export default function ReimbursementClient() {
     );
 }
 
+
+
+    
