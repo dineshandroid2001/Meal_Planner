@@ -42,7 +42,6 @@ export type ReimbursementRequest = {
   userName: string;
   amount: number;
   description: string;
-  receiptUrl?: string;
   paymentUrl?: string;
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: any;
@@ -50,3 +49,4 @@ export type ReimbursementRequest = {
   aiAlignment: string;
   aiDiscrepancies: string;
 };
+

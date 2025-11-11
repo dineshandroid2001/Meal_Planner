@@ -51,7 +51,6 @@ export default function ReimbursementClient() {
     
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
-    const [receiptFile, setReceiptFile] = useState<File | null>(null);
     const [paymentFile, setPaymentFile] = useState<File | null>(null);
 
     const reimbursementsQuery = useMemoFirebase(() => {
@@ -111,11 +110,9 @@ export default function ReimbursementClient() {
         toast({ title: 'Submitting...', description: 'Analyzing your request with AI. This may take a moment.' });
         
         try {
-            const receiptDataUri = receiptFile ? await fileToDataUri(receiptFile) : undefined;
             const paymentScreenshotDataUri = paymentFile ? await fileToDataUri(paymentFile) : undefined;
             
             const aiResult = await groceryReimbursementSummarization({
-                receiptDataUri,
                 paymentScreenshotDataUri,
                 expectedTotalAmount: parseFloat(amount),
                 description,
@@ -133,11 +130,6 @@ export default function ReimbursementClient() {
                 aiDiscrepancies: aiResult.flaggedDiscrepancies,
             };
             
-            if (receiptDataUri && receiptFile) {
-                const receiptRef = ref(storage, `reimbursements/${user.uid}/${Date.now()}_receipt`);
-                const receiptUrl = await getDownloadURL(await uploadString(receiptRef, receiptDataUri, 'data_url'));
-                newRequest.receiptUrl = receiptUrl;
-            }
 
             if (paymentScreenshotDataUri && paymentFile) {
                 const paymentRef = ref(storage, `reimbursements/${user.uid}/${Date.now()}_payment`);
@@ -152,7 +144,6 @@ export default function ReimbursementClient() {
             // Reset form
             setDescription('');
             setAmount('');
-            setReceiptFile(null);
             setPaymentFile(null);
             (document.getElementById('reimbursement-form') as HTMLFormElement)?.reset();
 
@@ -218,10 +209,6 @@ export default function ReimbursementClient() {
                     <div className="grid gap-2">
                         <Label htmlFor="amount">Total Amount (₹)</Label>
                         <Input id="amount" type="number" placeholder="1250.00" value={amount} onChange={e => setAmount(e.target.value)} required />
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="receipt">Receipt Photo</Label>
-                        <Input id="receipt" type="file" accept="image/*" onChange={e => setReceiptFile(e.target.files?.[0] || null)} />
                     </div>
                     <div className="grid gap-2">
                         <Label htmlFor="payment">Payment Screenshot</Label>

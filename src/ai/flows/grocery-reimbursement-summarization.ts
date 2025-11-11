@@ -1,3 +1,4 @@
+
 'use server';
 /**
  * @fileOverview This file contains a Genkit flow for summarizing and analyzing grocery reimbursement requests.
@@ -11,11 +12,6 @@ import {ai} from '@/ai/genkit';
 import {z} from 'genkit';
 
 const GroceryReimbursementInputSchema = z.object({
-  receiptDataUri: z
-    .string()
-    .describe(
-      "A photo of the grocery receipt, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
-    ).optional(),
   paymentScreenshotDataUri: z
     .string()
     .describe(
@@ -54,7 +50,6 @@ You will receive a grocery receipt image, a payment screenshot, the expected tot
 Analyze the following information:
 
 Description: {{{description}}}
-{{#if receiptDataUri}}Receipt: {{media url=receiptDataUri}}{{/if}}
 {{#if paymentScreenshotDataUri}}Payment Screenshot: {{media url=paymentScreenshotDataUri}}{{/if}}
 Expected Total Amount: {{{expectedTotalAmount}}}
 
@@ -72,3 +67,4 @@ const groceryReimbursementFlow = ai.defineFlow(
     return output!;
   }
 );
+
