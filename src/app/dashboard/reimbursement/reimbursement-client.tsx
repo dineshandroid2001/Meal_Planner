@@ -7,12 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useUser, useFirestore, addDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, addDocumentNonBlocking, useCollection, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { ReimbursementRequest, User } from '@/lib/types';
 import { groceryReimbursementSummarization } from '@/ai/flows/grocery-reimbursement-summarization';
-import { collection, query, orderBy, Timestamp } from 'firebase/firestore';
+import { collection, query, orderBy, Timestamp, doc } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -26,6 +26,18 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Skeleton } from '@/components/ui/skeleton';
+import { Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 
 export default function ReimbursementClient() {
@@ -45,7 +57,7 @@ export default function ReimbursementClient() {
         return query(collection(firestore, "reimbursements"), orderBy("submittedAt", "desc"));
     }, [firestore]);
 
-    const { data: reimbursements, isLoading: isLoadingReimbursements } = useCollection<ReimbursementRequest>(reimbursementsQuery);
+    const { data: reimbursements, isLoading: isLoadingReimbursements } = useCollection<ReimbursementRequest & { id: string }>(reimbursementsQuery);
     
     const roommatesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, 'roommates') : null, [firestore]);
     const { data: allRoommates, isLoading: areRoommatesLoading } = useCollection<User & {id: string}>(roommatesCollectionRef);
@@ -144,6 +156,17 @@ export default function ReimbursementClient() {
             setIsSubmitting(false);
         }
     };
+    
+    const handleDelete = (reimbursementId: string) => {
+        if (!firestore || !(user as User)?.isAdmin) {
+            toast({ title: "Permission Denied", description: "You are not authorized to delete requests.", variant: "destructive" });
+            return;
+        }
+
+        const docRef = doc(firestore, 'reimbursements', reimbursementId);
+        deleteDocumentNonBlocking(docRef);
+        toast({ title: "Request Deleted", description: "The reimbursement request has been removed." });
+    };
 
     const formatDate = (timestamp: Timestamp) => {
         if (timestamp && typeof timestamp.toDate === 'function') {
@@ -240,7 +263,7 @@ export default function ReimbursementClient() {
                                     <TableHead>Amount</TableHead>
                                     <TableHead>Date</TableHead>
                                     <TableHead>Status</TableHead>
-                                    <TableHead className="text-right">Details</TableHead>
+                                    <TableHead className="text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -261,7 +284,7 @@ export default function ReimbursementClient() {
                                                 {req.status}
                                             </Badge>
                                         </TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="text-right flex items-center justify-end gap-2">
                                         <Dialog>
                                             <DialogTrigger asChild>
                                                 <Button variant="outline" size="sm">View</Button>
@@ -304,6 +327,28 @@ export default function ReimbursementClient() {
                                                 </div>
                                             </DialogContent>
                                         </Dialog>
+                                         {(user as User)?.isAdmin && (
+                                            <AlertDialog>
+                                                <AlertDialogTrigger asChild>
+                                                    <Button variant="destructive" size="icon">
+                                                        <Trash2 className="h-4 w-4" />
+                                                        <span className="sr-only">Delete</span>
+                                                    </Button>
+                                                </AlertDialogTrigger>
+                                                <AlertDialogContent>
+                                                    <AlertDialogHeader>
+                                                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                                                        <AlertDialogDescription>
+                                                            This action cannot be undone. This will permanently delete the reimbursement request.
+                                                        </AlertDialogDescription>
+                                                    </AlertDialogHeader>
+                                                    <AlertDialogFooter>
+                                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                                        <AlertDialogAction onClick={() => handleDelete(req.id)}>Delete</AlertDialogAction>
+                                                    </AlertDialogFooter>
+                                                </AlertDialogContent>
+                                            </AlertDialog>
+                                        )}
                                         </TableCell>
                                     </TableRow>
                                 ))}
