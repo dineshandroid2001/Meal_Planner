@@ -7,9 +7,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from 'date-fns';
-import { useUser, useFirestore, setDocumentNonBlocking, useCollection, useDoc, useMemoFirebase } from '@/firebase';
+import { useUser, useFirestore, setDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { doc, collection, getDocs, query, getDoc } from 'firebase/firestore';
+import { doc, collection, getDocs, query, getDoc, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
@@ -32,7 +32,7 @@ function MembersList() {
     const { data: monthlyPlan, isLoading: isPlanLoading } = useDoc<MonthlyPlan>(planDocRef);
     
     const participantsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `monthlyPlans/${monthId}/participations`) : null, [firestore, monthId]);
-    const { data: participantsData, isLoading: areParticipantsLoading } = useCollection<Omit<Participant, 'name' | 'photoURL'>>(participantsCollectionRef);
+    const { data: participantsData, isLoading: areParticipantsLoading } = useCollection<Omit<Participant, 'name' | 'photoURL' | 'cost'>>(participantsCollectionRef);
 
     useEffect(() => {
         const fetchParticipantDetails = async () => {
@@ -48,11 +48,22 @@ function MembersList() {
                 const roommateDocRef = doc(firestore, 'roommates', p.id);
                 const roommateSnap = await getDoc(roommateDocRef);
                 const roommate = roommateSnap.data() as User;
+                
+                let lastUpdatedAtDate = new Date(); // Default
+                if (p.lastUpdatedAt) {
+                    if (p.lastUpdatedAt instanceof Timestamp) {
+                        lastUpdatedAtDate = p.lastUpdatedAt.toDate();
+                    } else if (p.lastUpdatedAt instanceof Date) {
+                        lastUpdatedAtDate = p.lastUpdatedAt;
+                    }
+                }
+                
                 return {
                     ...p,
                     name: roommate?.displayName || 'Unknown',
                     photoURL: roommate?.photoURL || null,
                     cost: p.days * costPerDay,
+                    lastUpdatedAt: lastUpdatedAtDate,
                 };
             });
             
@@ -105,25 +116,23 @@ function MembersList() {
         }
         setIsSubmitting(true);
         
-        try {
-            const participantDocRef = doc(firestore, `monthlyPlans/${monthId}/participations`, participant.id);
+        const participantDocRef = doc(firestore, `monthlyPlans/${monthId}/participations`, participant.id);
 
-            const { name, photoURL, cost, ...participantToSave } = participant;
+        const { name, photoURL, cost, ...participantToSave } = participant;
 
-            const updatedParticipant = {
-                ...participantToSave,
-                lastUpdatedAt: new Date(),
-                lastUpdatedBy: user.displayName || user.email || 'Unknown User',
-            };
+        const updatedParticipant = {
+            ...participantToSave,
+            lastUpdatedAt: new Date(),
+            lastUpdatedBy: user.displayName || user.email || 'Unknown User',
+        };
 
-            setDocumentNonBlocking(participantDocRef, updatedParticipant, { merge: true });
+        setDocumentNonBlocking(participantDocRef, updatedParticipant, { merge: true });
 
-            toast({ title: "Success", description: `${participant.name}'s plan updated.` });
-        } finally {
-            // We don't want to wait for the result, so we'll set submitting to false immediately.
-            // Errors will be caught by the global error handler.
-            setIsSubmitting(false);
-        }
+        toast({ title: "Success", description: `${participant.name}'s plan updated.` });
+        
+        // We don't want to wait for the result, so we'll set submitting to false immediately.
+        // Errors will be caught by the global error handler.
+        setIsSubmitting(false);
     };
 
     const getInitials = (name: string | null | undefined) => {
@@ -195,7 +204,7 @@ function MembersList() {
                             <TableCell>
                                 {p.lastUpdatedAt && (
                                 <div className="flex items-center gap-2">
-                                    {format(new Date(p.lastUpdatedAt), 'PPp')}
+                                    {format(p.lastUpdatedAt, 'PPp')}
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <Info className="h-4 w-4 text-muted-foreground" />
