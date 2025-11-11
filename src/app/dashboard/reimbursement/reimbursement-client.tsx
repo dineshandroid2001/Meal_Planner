@@ -28,7 +28,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trash2 } from 'lucide-react';
+import { CheckCircle, Trash2 } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -248,7 +248,10 @@ export default function ReimbursementClient() {
                                 <TableRow>
                                     <TableHead>User</TableHead>
                                     <TableHead className="text-right">Pending</TableHead>
-                                    <TableHead className="text-right">Approved</TableHead>
+                                    <TableHead className="text-right flex items-center justify-end gap-2">
+                                        Approved
+                                        <CheckCircle className="h-4 w-4 text-green-500" />
+                                    </TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
