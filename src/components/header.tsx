@@ -7,16 +7,19 @@ import UserNav from '@/components/user-nav';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useUser } from '@/firebase';
+import { User } from '@/lib/types';
 
 
 const navItems = [
     { href: '/dashboard', label: 'Dashboard' },
     { href: '/dashboard/reimbursement', label: 'Reimbursement' },
-    { href: '/dashboard/settings', label: 'Settings' },
+    { href: '/dashboard/settings', label: 'Settings', adminOnly: true },
 ];
 
 export default function Header() {
   const pathname = usePathname();
+  const { user } = useUser();
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
@@ -36,7 +39,11 @@ export default function Header() {
               <UtensilsCrossed className="h-5 w-5 transition-all group-hover:scale-110" />
               <span className="sr-only">Roommate Meal Planner</span>
             </Link>
-            {navItems.map((item) => (
+            {navItems.map((item) => {
+              if (item.adminOnly && !(user as User)?.isAdmin) {
+                return null;
+              }
+              return (
               <Link
                 key={item.href}
                 href={item.href}
@@ -47,7 +54,7 @@ export default function Header() {
               >
                 {item.label}
               </Link>
-            ))}
+            )})}
           </nav>
         </SheetContent>
       </Sheet>

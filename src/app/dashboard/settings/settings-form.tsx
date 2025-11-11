@@ -46,6 +46,7 @@ export default function SettingsForm() {
 
             const newPlanData = {
                 id: monthId,
+                adminId: user.uid,
                 monthlyExpense: expense,
                 lastUpdatedAt: new Date(),
                 lastUpdatedBy: user.displayName || user.email || 'Unknown User',

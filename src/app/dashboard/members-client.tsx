@@ -45,16 +45,11 @@ function InviteRoommateDialog({ onInvite }: { onInvite: () => void }) {
         }
         setIsSubmitting(true);
 
-        // A real user ID will be created on first sign-in, for now we use email as a temporary ID
-        // but this is not secure and the user won't be able to log in.
-        // This just adds them to the list. They still need to sign up.
-        // We'll create a placeholder ID, but the user will get a real one on sign up.
         const tempId = `placeholder_${email.replace(/[^a-zA-Z0-9]/g, '')}`;
         const userDocRef = doc(firestore, 'roommates', tempId);
 
         try {
             await setDocumentNonBlocking(userDocRef, {
-                // id: tempId, // The ID is the doc name
                 name: name,
                 email: email,
                 photoURL: `https://api.dicebear.com/8.x/initials/svg?seed=${name}`,
@@ -62,7 +57,7 @@ function InviteRoommateDialog({ onInvite }: { onInvite: () => void }) {
             }, { merge: true });
 
             toast({ title: "Roommate Invited", description: `${name} has been added. They will need to sign up with this email.` });
-            onInvite(); // Refresh the list
+            onInvite();
             setName('');
             setEmail('');
             setIsOpen(false);
@@ -152,7 +147,7 @@ function MembersList() {
             
             const days = participation?.days || 0;
             
-            let lastUpdatedAtDate: Date = new Date();
+            let lastUpdatedAtDate: Date | null = null;
             if (participation?.lastUpdatedAt) {
                  if (participation.lastUpdatedAt instanceof Timestamp) {
                     lastUpdatedAtDate = participation.lastUpdatedAt.toDate();
@@ -330,5 +325,3 @@ function MembersList() {
 export default function MembersClient() {
     return <MembersList />;
 }
-
-    
