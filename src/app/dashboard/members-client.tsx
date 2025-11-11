@@ -48,25 +48,20 @@ function InviteRoommateDialog({ onInvite }: { onInvite: () => void }) {
         const tempId = `placeholder_${email.replace(/[^a-zA-Z0-9]/g, '')}`;
         const userDocRef = doc(firestore, 'roommates', tempId);
 
-        try {
-            await setDocumentNonBlocking(userDocRef, {
-                name: name,
-                email: email,
-                photoURL: `https://api.dicebear.com/8.x/initials/svg?seed=${name}`,
-                isAdmin: false,
-            }, { merge: true });
+        
+        setDocumentNonBlocking(userDocRef, {
+            name: name,
+            email: email,
+            photoURL: `https://api.dicebear.com/8.x/initials/svg?seed=${name}`,
+            isAdmin: false,
+        }, { merge: true });
 
-            toast({ title: "Roommate Invited", description: `${name} has been added. They will need to sign up with this email.` });
-            onInvite();
-            setName('');
-            setEmail('');
-            setIsOpen(false);
-        } catch (error) {
-            console.error("Error inviting roommate:", error);
-            toast({ title: "Error", description: "Could not invite roommate.", variant: "destructive" });
-        } finally {
-            setIsSubmitting(false);
-        }
+        toast({ title: "Roommate Invited", description: `${name} has been added. They will need to sign up with this email.` });
+        onInvite();
+        setName('');
+        setEmail('');
+        setIsOpen(false);
+        setIsSubmitting(false);
     };
 
     return (

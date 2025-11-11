@@ -15,7 +15,7 @@ export type Participant = {
   days: number;
   cost: number;
   lastUpdatedBy: string;
-  lastUpdatedAt: Date;
+  lastUpdatedAt: Date | Timestamp | string | null;
   isAdmin: boolean;
 };
 
@@ -50,5 +50,3 @@ export type ReimbursementRequest = {
   aiAlignment: string;
   aiDiscrepancies: string;
 };
-
-    
