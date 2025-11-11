@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +46,15 @@ export default function ReimbursementClient() {
     }, [firestore]);
 
     const { data: reimbursements, isLoading: isLoadingReimbursements } = useCollection<ReimbursementRequest>(reimbursementsQuery);
+    
+    const roommatesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, 'roommates') : null, [firestore]);
+    const { data: allRoommates, isLoading: areRoommatesLoading } = useCollection<User & {id: string}>(roommatesCollectionRef);
+
+    const roommatesMap = useMemo(() => {
+        if (!allRoommates) return new Map();
+        return new Map(allRoommates.map(r => [r.id, r.name || r.displayName || 'Unknown']));
+    }, [allRoommates]);
+
 
     const fileToDataUri = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -90,18 +99,19 @@ export default function ReimbursementClient() {
             };
 
             const timestamp = Date.now();
-
+            
             if (receiptDataUri && receiptFile) {
                 const receiptRef = ref(storage, `reimbursements/${user.uid}/${timestamp}_receipt`);
-                await uploadString(receiptRef, receiptDataUri, 'data_url');
-                newRequest.receiptUrl = await getDownloadURL(receiptRef);
+                const uploadTask = await uploadString(receiptRef, receiptDataUri, 'data_url');
+                newRequest.receiptUrl = await getDownloadURL(uploadTask.ref);
             }
 
             if (paymentScreenshotDataUri && paymentFile) {
                 const paymentRef = ref(storage, `reimbursements/${user.uid}/${timestamp}_payment`);
-                await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url');
-                newRequest.paymentUrl = await getDownloadURL(paymentRef);
+                const uploadTask = await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url');
+                newRequest.paymentUrl = await getDownloadURL(uploadTask.ref);
             }
+
 
             await addDocumentNonBlocking(collection(firestore, 'reimbursements'), newRequest);
             
@@ -134,6 +144,8 @@ export default function ReimbursementClient() {
         }
         return 'Invalid date';
     }
+
+    const isLoading = isLoadingReimbursements || areRoommatesLoading;
 
     return (
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
@@ -186,7 +198,7 @@ export default function ReimbursementClient() {
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {isLoadingReimbursements && (
+                            {isLoading && (
                                 <TableRow>
                                     <TableCell colSpan={5} className="h-24 text-center">
                                         <Skeleton className="h-8 w-full" />
@@ -195,7 +207,7 @@ export default function ReimbursementClient() {
                             )}
                             {reimbursements?.map(req => (
                                 <TableRow key={req.id}>
-                                    <TableCell>{req.userName}</TableCell>
+                                    <TableCell>{roommatesMap.get(req.roommateId) || 'Unknown'}</TableCell>
                                     <TableCell>₹{req.amount.toFixed(2)}</TableCell>
                                     <TableCell>{formatDate(req.submittedAt)}</TableCell>
                                     <TableCell>
@@ -212,7 +224,7 @@ export default function ReimbursementClient() {
                                             <DialogHeader>
                                             <DialogTitle>Reimbursement Details</DialogTitle>
                                             <DialogDescription>
-                                                Submitted by {req.userName} on {formatDialogDate(req.submittedAt)}
+                                                Submitted by {roommatesMap.get(req.roommateId) || 'Unknown'} on {formatDialogDate(req.submittedAt)}
                                             </DialogDescription>
                                             </DialogHeader>
                                             <div className="grid gap-4 py-4">
