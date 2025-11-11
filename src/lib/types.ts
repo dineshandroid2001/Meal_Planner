@@ -1,4 +1,5 @@
 import type { User as FirebaseUser } from 'firebase/auth';
+import type { Timestamp } from 'firebase/firestore';
 
 export interface User extends FirebaseUser {
   isAdmin?: boolean;
@@ -40,7 +41,7 @@ export type ReimbursementRequest = {
   receiptUrl?: string;
   paymentUrl?: string;
   status: 'pending' | 'approved' | 'rejected';
-  submittedAt: Date;
+  submittedAt: Timestamp;
   aiSummary: string;
   aiAlignment: string;
   aiDiscrepancies: string;

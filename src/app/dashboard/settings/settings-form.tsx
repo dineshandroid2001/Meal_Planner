@@ -2,25 +2,28 @@
 
 import React, { useState, useEffect } from 'react';
 import type { MonthlyPlan, User } from '@/lib/types';
-import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, setDocumentNonBlocking, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { doc } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
-type SettingsFormProps = {
-    monthlyPlan: MonthlyPlan;
-};
 
-export default function SettingsForm({ monthlyPlan }: SettingsFormProps) {
+export default function SettingsForm() {
     const { user } = useUser();
     const firestore = useFirestore();
     const router = useRouter();
     const { toast } = useToast();
-    const [expense, setExpense] = useState(monthlyPlan.monthlyExpense);
+    const [expense, setExpense] = useState(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const today = new Date();
+    const monthId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+    const planDocRef = useMemoFirebase(() => firestore ? doc(firestore, 'monthlyPlans', monthId) : null, [firestore, monthId]);
+    const { data: monthlyPlan, isLoading } = useDoc<MonthlyPlan>(planDocRef);
 
     useEffect(() => {
         if (user && !(user as User).isAdmin) {
@@ -29,19 +32,26 @@ export default function SettingsForm({ monthlyPlan }: SettingsFormProps) {
         }
     }, [user, router, toast]);
 
+    useEffect(() => {
+        if (monthlyPlan) {
+            setExpense(monthlyPlan.monthlyExpense);
+        }
+    }, [monthlyPlan]);
+
     const handleSave = async () => {
-        if (!user || !(user as User).isAdmin) return;
+        if (!user || !(user as User).isAdmin || !firestore) return;
         setIsSubmitting(true);
         try {
-            const today = new Date();
-            const monthId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
             const planDocRef = doc(firestore, 'monthlyPlans', monthId);
 
-            setDocumentNonBlocking(planDocRef, {
+            const newPlanData = {
+                id: monthId,
                 monthlyExpense: expense,
                 lastUpdatedAt: new Date(),
-                lastUpdatedBy: user.displayName || user.email,
-            }, { merge: true });
+                lastUpdatedBy: user.displayName || user.email || 'Unknown User',
+            };
+
+            setDocumentNonBlocking(planDocRef, newPlanData, { merge: true });
 
             toast({ title: "Success", description: "Monthly expense updated." });
             router.refresh();
@@ -52,9 +62,13 @@ export default function SettingsForm({ monthlyPlan }: SettingsFormProps) {
             setIsSubmitting(false);
         }
     };
+    
+    if (isLoading) {
+        return <Skeleton className="h-24 w-full" />;
+    }
 
     if (!(user as User)?.isAdmin) {
-        return null;
+        return <p>You do not have permission to view this page.</p>;
     }
 
     return (

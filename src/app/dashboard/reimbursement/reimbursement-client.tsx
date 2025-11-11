@@ -6,12 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useUser, useFirestore, addDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, addDocumentNonBlocking, useCollection, useMemoFirebase } from '@/firebase';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { ReimbursementRequest, User } from '@/lib/types';
 import { groceryReimbursementSummarization } from '@/ai/flows/grocery-reimbursement-summarization';
-import { collection } from 'firebase/firestore';
+import { collection, query, orderBy } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -23,24 +23,28 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog"
+} from "@/components/ui/dialog";
+import { Skeleton } from '@/components/ui/skeleton';
 
 
-type ReimbursementClientProps = {
-    initialReimbursements: ReimbursementRequest[];
-};
-
-export default function ReimbursementClient({ initialReimbursements }: ReimbursementClientProps) {
+export default function ReimbursementClient() {
     const { user } = useUser();
     const firestore = useFirestore();
     const storage = getStorage();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [reimbursements, setReimbursements] = useState(initialReimbursements);
+    
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
     const [receiptFile, setReceiptFile] = useState<File | null>(null);
     const [paymentFile, setPaymentFile] = useState<File | null>(null);
+
+    const reimbursementsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, "reimbursements"), orderBy("submittedAt", "desc"));
+    }, [firestore]);
+
+    const { data: reimbursements, isLoading: isLoadingReimbursements } = useCollection<ReimbursementRequest>(reimbursementsQuery);
 
     const fileToDataUri = (file: File): Promise<string> => {
         return new Promise((resolve, reject) => {
@@ -53,7 +57,7 @@ export default function ReimbursementClient({ initialReimbursements }: Reimburse
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user || !receiptFile || !paymentFile || !description || !amount) {
+        if (!user || !receiptFile || !paymentFile || !description || !amount || !firestore) {
             toast({ title: 'Missing fields', description: 'Please fill out all fields and upload both images.', variant: 'destructive' });
             return;
         }
@@ -96,10 +100,7 @@ export default function ReimbursementClient({ initialReimbursements }: Reimburse
                 aiDiscrepancies: aiResult.flaggedDiscrepancies,
             };
 
-            const docRef = await addDocumentNonBlocking(collection(firestore, 'reimbursements'), newRequest);
-            if (docRef) {
-                setReimbursements(prev => [{ id: docRef.id, ...newRequest }, ...prev]);
-            }
+            await addDocumentNonBlocking(collection(firestore, 'reimbursements'), newRequest);
             
             toast({ title: 'Success!', description: 'Your reimbursement request has been submitted.' });
             // Reset form
@@ -169,11 +170,18 @@ export default function ReimbursementClient({ initialReimbursements }: Reimburse
                             </TableRow>
                         </TableHeader>
                         <TableBody>
-                            {reimbursements.map(req => (
+                            {isLoadingReimbursements && (
+                                <TableRow>
+                                    <TableCell colSpan={5} className="h-24 text-center">
+                                        <Skeleton className="h-8 w-full" />
+                                    </TableCell>
+                                </TableRow>
+                            )}
+                            {reimbursements?.map(req => (
                                 <TableRow key={req.id}>
                                     <TableCell>{req.userName}</TableCell>
                                     <TableCell>₹{req.amount.toFixed(2)}</TableCell>
-                                    <TableCell>{format(new Date(req.submittedAt), 'PP')}</TableCell>
+                                    <TableCell>{format(new Date(req.submittedAt.seconds * 1000), 'PP')}</TableCell>
                                     <TableCell>
                                         <Badge variant={req.status === 'pending' ? 'secondary' : req.status === 'approved' ? 'default' : 'destructive'}>
                                             {req.status}
@@ -188,7 +196,7 @@ export default function ReimbursementClient({ initialReimbursements }: Reimburse
                                             <DialogHeader>
                                             <DialogTitle>Reimbursement Details</DialogTitle>
                                             <DialogDescription>
-                                                Submitted by {req.userName} on {format(new Date(req.submittedAt), 'PPp')}
+                                                Submitted by {req.userName} on {format(new Date(req.submittedAt.seconds * 1000), 'PPp')}
                                             </DialogDescription>
                                             </DialogHeader>
                                             <div className="grid gap-4 py-4">

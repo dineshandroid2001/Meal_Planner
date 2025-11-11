@@ -6,47 +6,58 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from 'date-fns';
-import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, setDocumentNonBlocking, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { doc } from 'firebase/firestore';
+import { doc, collection } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+import { Skeleton } from '@/components/ui/skeleton';
 
-type MembersClientProps = {
-    initialParticipants: Participant[];
-    monthlyPlan: MonthlyPlan;
-}
+const dayOptions = [0, 10, 15, 20, 30];
 
-const dayOptions = [0, 10, 15, 20, 30]; // Assuming 30 days in a month for simplicity
-
-export default function MembersClient({ initialParticipants, monthlyPlan }: MembersClientProps) {
-    const [participants, setParticipants] = useState<Participant[]>(initialParticipants);
+export default function MembersClient() {
     const { user } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [participants, setParticipants] = useState<Participant[]>([]);
+
+    const today = new Date();
+    const monthId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+
+    const planDocRef = useMemoFirebase(() => firestore ? doc(firestore, 'monthlyPlans', monthId) : null, [firestore, monthId]);
+    const { data: monthlyPlan, isLoading: isPlanLoading } = useDoc<MonthlyPlan>(planDocRef);
     
-    const costPerDay = monthlyPlan.monthlyExpense / 30;
+    const usersCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, 'users') : null, [firestore]);
+    const { data: allUsers, isLoading: areUsersLoading } = useCollection<User>(usersCollectionRef);
+
+    const participantsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `monthlyPlans/${monthId}/participants`) : null, [firestore, monthId]);
+    const { data: participantsData, isLoading: areParticipantsLoading } = useCollection<Participant>(participantsCollectionRef);
+    
+    const costPerDay = (monthlyPlan?.monthlyExpense || 0) / 30;
 
     useEffect(() => {
-        const updatedParticipants = initialParticipants.map(p => ({
-            ...p,
-            cost: p.days * costPerDay,
-        }));
-        setParticipants(updatedParticipants);
-    }, [initialParticipants, monthlyPlan.monthlyExpense, costPerDay]);
+        if (areUsersLoading || areParticipantsLoading || isPlanLoading) return;
+
+        const effectiveParticipants = allUsers?.map(u => {
+            const participantData = participantsData?.find(p => p.id === u.uid);
+            if (participantData) {
+                return { ...participantData, cost: participantData.days * costPerDay };
+            }
+            return {
+                id: u.uid,
+                name: u.displayName,
+                photoURL: u.photoURL,
+                days: 0,
+                cost: 0,
+                lastUpdatedAt: new Date(),
+                lastUpdatedBy: 'System',
+            };
+        }) || [];
+        setParticipants(effectiveParticipants);
+
+    }, [allUsers, participantsData, isPlanLoading, areUsersLoading, areParticipantsLoading, costPerDay]);
 
     const handleDaysChange = (participantId: string, newDays: string) => {
         const days = parseInt(newDays, 10);
@@ -58,14 +69,12 @@ export default function MembersClient({ initialParticipants, monthlyPlan }: Memb
     };
 
     const handleSaveChanges = async (participant: Participant) => {
-        if (!user) {
-            toast({ title: "Not authenticated", description: "You must be logged in.", variant: "destructive" });
+        if (!user || !firestore) {
+            toast({ title: "Not authenticated or DB not available", description: "You must be logged in.", variant: "destructive" });
             return;
         }
         setIsSubmitting(true);
         try {
-            const today = new Date();
-            const monthId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
             const participantDocRef = doc(firestore, `monthlyPlans/${monthId}/participants`, participant.id);
 
             const updatedParticipant = {
@@ -92,7 +101,23 @@ export default function MembersClient({ initialParticipants, monthlyPlan }: Memb
             return names[0][0] + names[names.length - 1][0];
         }
         return name[0];
-      };
+    };
+
+    if (areUsersLoading || areParticipantsLoading || isPlanLoading) {
+        return (
+            <div className="space-y-4">
+                {[...Array(3)].map((_, i) => (
+                    <div key={i} className="flex items-center space-x-4">
+                        <Skeleton className="h-12 w-12 rounded-full" />
+                        <div className="space-y-2">
+                            <Skeleton className="h-4 w-[250px]" />
+                            <Skeleton className="h-4 w-[200px]" />
+                        </div>
+                    </div>
+                ))}
+            </div>
+        );
+    }
 
     return (
         <TooltipProvider>
@@ -137,7 +162,7 @@ export default function MembersClient({ initialParticipants, monthlyPlan }: Memb
                             <TableCell>₹{p.cost.toFixed(2)}</TableCell>
                             <TableCell>
                                 <div className="flex items-center gap-2">
-                                    {format(new Date(p.lastUpdatedAt), 'PPp')}
+                                    {p.lastUpdatedAt && format(new Date(p.lastUpdatedAt), 'PPp')}
                                     <Tooltip>
                                         <TooltipTrigger asChild>
                                             <Info className="h-4 w-4 text-muted-foreground" />
