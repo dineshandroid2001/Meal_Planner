@@ -1,6 +1,7 @@
+
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import type { Participant, MonthlyPlan, User } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -8,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format } from 'date-fns';
 import { useUser, useFirestore, setDocumentNonBlocking, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { doc, collection, getDocs, query, where, getDoc } from 'firebase/firestore';
+import { doc, collection, getDocs, query, getDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
@@ -16,7 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 
 const dayOptions = [0, 10, 15, 20, 30];
 
-export default function MembersClient() {
+function MembersList() {
     const { user } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
@@ -29,14 +30,14 @@ export default function MembersClient() {
 
     const planDocRef = useMemoFirebase(() => firestore ? doc(firestore, 'monthlyPlans', monthId) : null, [firestore, monthId]);
     const { data: monthlyPlan, isLoading: isPlanLoading } = useDoc<MonthlyPlan>(planDocRef);
-
+    
     const participantsCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, `monthlyPlans/${monthId}/participations`) : null, [firestore, monthId]);
     const { data: participantsData, isLoading: areParticipantsLoading } = useCollection<Omit<Participant, 'name' | 'photoURL'>>(participantsCollectionRef);
 
     useEffect(() => {
         const fetchParticipantDetails = async () => {
-            if (!firestore || areParticipantsLoading || !participantsData) {
-                setIsLoading(areParticipantsLoading);
+            if (!firestore || areParticipantsLoading || !participantsData || isPlanLoading) {
+                setIsLoading(areParticipantsLoading || isPlanLoading);
                 return;
             }
             setIsLoading(true);
@@ -221,4 +222,8 @@ export default function MembersClient() {
             </Table>
         </TooltipProvider>
     );
+}
+
+export default function MembersClient() {
+    return <MembersList />;
 }
