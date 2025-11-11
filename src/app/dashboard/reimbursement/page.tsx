@@ -1,10 +1,11 @@
 import ReimbursementClient from "./reimbursement-client";
 import { collection, getDocs, orderBy, query } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { initializeFirebase } from "@/firebase";
 import { ReimbursementRequest } from "@/lib/types";
 
 async function getReimbursements() {
-  const q = query(collection(db, "reimbursements"), orderBy("submittedAt", "desc"));
+  const { firestore } = initializeFirebase();
+  const q = query(collection(firestore, "reimbursements"), orderBy("submittedAt", "desc"));
   const querySnapshot = await getDocs(q);
   const reimbursements = querySnapshot.docs.map(doc => ({
     id: doc.id,

@@ -5,7 +5,9 @@ import { usePathname } from 'next/navigation';
 import { Home, UtensilsCrossed, Receipt, Settings } from 'lucide-react';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { useAuth } from '@/hooks/use-auth';
+import { useUser } from '@/firebase';
+import { User } from '@/lib/types';
+
 
 const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
@@ -15,7 +17,7 @@ const navItems = [
 
 export default function Sidebar() {
     const pathname = usePathname();
-    const { user } = useAuth();
+    const { user } = useUser();
   
     return (
         <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
@@ -29,7 +31,7 @@ export default function Sidebar() {
                       <span className="sr-only">Roommate Meal Planner</span>
                     </Link>
                     {navItems.map((item) => {
-                        if (item.adminOnly && !user?.isAdmin) {
+                        if (item.adminOnly && !(user as User)?.isAdmin) {
                             return null;
                         }
                         return (

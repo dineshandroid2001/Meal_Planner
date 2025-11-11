@@ -1,15 +1,14 @@
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
-import type { Participant, MonthlyPlan } from '@/lib/types';
+import React, { useState, useEffect } from 'react';
+import type { Participant, MonthlyPlan, User } from '@/lib/types';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from 'date-fns';
-import { useAuth } from '@/hooks/use-auth';
+import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { doc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Info } from 'lucide-react';
@@ -34,7 +33,8 @@ const dayOptions = [0, 10, 15, 20, 30]; // Assuming 30 days in a month for simpl
 
 export default function MembersClient({ initialParticipants, monthlyPlan }: MembersClientProps) {
     const [participants, setParticipants] = useState<Participant[]>(initialParticipants);
-    const { user } = useAuth();
+    const { user } = useUser();
+    const firestore = useFirestore();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     
@@ -66,7 +66,7 @@ export default function MembersClient({ initialParticipants, monthlyPlan }: Memb
         try {
             const today = new Date();
             const monthId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-            const participantDocRef = doc(db, `monthlyPlans/${monthId}/participants`, participant.id);
+            const participantDocRef = doc(firestore, `monthlyPlans/${monthId}/participants`, participant.id);
 
             const updatedParticipant = {
                 ...participant,
@@ -74,7 +74,7 @@ export default function MembersClient({ initialParticipants, monthlyPlan }: Memb
                 lastUpdatedBy: user.displayName || user.email || 'Unknown User',
             };
             
-            await setDoc(participantDocRef, updatedParticipant, { merge: true });
+            setDocumentNonBlocking(participantDocRef, updatedParticipant, { merge: true });
 
             toast({ title: "Success", description: `${participant.name}'s plan updated.` });
         } catch (error) {
@@ -122,7 +122,7 @@ export default function MembersClient({ initialParticipants, monthlyPlan }: Memb
                                 <Select
                                     value={String(p.days)}
                                     onValueChange={(value) => handleDaysChange(p.id, value)}
-                                    disabled={user?.id !== p.id && !user?.isAdmin}
+                                    disabled={user?.uid !== p.id && !(user as User)?.isAdmin}
                                 >
                                     <SelectTrigger className="w-[120px]">
                                         <SelectValue placeholder="Select days" />
@@ -152,7 +152,7 @@ export default function MembersClient({ initialParticipants, monthlyPlan }: Memb
                                 <Button 
                                     size="sm" 
                                     onClick={() => handleSaveChanges(p)}
-                                    disabled={isSubmitting || (user?.id !== p.id && !user?.isAdmin)}
+                                    disabled={isSubmitting || (user?.uid !== p.id && !(user as User)?.isAdmin)}
                                 >
                                     Save
                                 </Button>

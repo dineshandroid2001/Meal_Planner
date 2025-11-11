@@ -6,13 +6,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useAuth } from '@/hooks/use-auth';
+import { useUser, useFirestore, addDocumentNonBlocking } from '@/firebase';
+import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
-import { ReimbursementRequest } from '@/lib/types';
+import { ReimbursementRequest, User } from '@/lib/types';
 import { groceryReimbursementSummarization } from '@/ai/flows/grocery-reimbursement-summarization';
-import { addDoc, collection } from 'firebase/firestore';
-import { db, storage } from '@/lib/firebase';
-import { getDownloadURL, ref, uploadString } from 'firebase/storage';
+import { collection } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
@@ -32,7 +31,9 @@ type ReimbursementClientProps = {
 };
 
 export default function ReimbursementClient({ initialReimbursements }: ReimbursementClientProps) {
-    const { user } = useAuth();
+    const { user } = useUser();
+    const firestore = useFirestore();
+    const storage = getStorage();
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [reimbursements, setReimbursements] = useState(initialReimbursements);
@@ -71,7 +72,6 @@ export default function ReimbursementClient({ initialReimbursements }: Reimburse
                 description,
             });
 
-            // Upload images to Firebase Storage
             const timestamp = Date.now();
             const receiptRef = ref(storage, `reimbursements/${user.uid}/${timestamp}_receipt`);
             const paymentRef = ref(storage, `reimbursements/${user.uid}/${timestamp}_payment`);
@@ -96,8 +96,10 @@ export default function ReimbursementClient({ initialReimbursements }: Reimburse
                 aiDiscrepancies: aiResult.flaggedDiscrepancies,
             };
 
-            const docRef = await addDoc(collection(db, 'reimbursements'), newRequest);
-            setReimbursements(prev => [{ id: docRef.id, ...newRequest }, ...prev]);
+            const docRef = await addDocumentNonBlocking(collection(firestore, 'reimbursements'), newRequest);
+            if (docRef) {
+                setReimbursements(prev => [{ id: docRef.id, ...newRequest }, ...prev]);
+            }
             
             toast({ title: 'Success!', description: 'Your reimbursement request has been submitted.' });
             // Reset form
@@ -206,9 +208,10 @@ export default function ReimbursementClient({ initialReimbursements }: Reimburse
                                                         <Image src={req.paymentUrl || "https://picsum.photos/seed/payment/400/600"} alt="Payment" width={250} height={400} className="rounded-md object-cover" />
                                                     </div>
                                                 </div>
-                                                {user?.isAdmin && req.status === 'pending' && (
+                                                {(user as User)?.isAdmin && req.status === 'pending' && (
                                                     <div className="flex gap-2 justify-end">
                                                         <Button variant="destructive" size="sm" disabled>Reject</Button>
+
                                                         <Button size="sm" disabled>Approve</Button>
                                                     </div>
                                                 )}

@@ -1,13 +1,14 @@
 import SettingsForm from './settings-form';
 import { getDoc, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { initializeFirebase } from '@/firebase';
 import type { MonthlyPlan } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 
 async function getMonthlyPlan() {
+    const { firestore } = initializeFirebase();
     const today = new Date();
     const monthId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-    const planDocRef = doc(db, 'monthlyPlans', monthId);
+    const planDocRef = doc(firestore, 'monthlyPlans', monthId);
     const planDocSnap = await getDoc(planDocRef);
 
     if (planDocSnap.exists()) {

@@ -2,7 +2,7 @@
 
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuth } from '@/hooks/use-auth';
+import { useUser } from '@/firebase';
 import Header from '@/components/header';
 import Sidebar from '@/components/sidebar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,7 +12,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { user, loading } = useAuth();
+  const { user, isUserLoading: loading } = useUser();
   const router = useRouter();
 
   useEffect(() => {

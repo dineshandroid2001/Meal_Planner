@@ -1,17 +1,18 @@
 import MembersClient from './members-client';
 import { getDocs, collection, getDoc, doc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { initializeFirebase } from '@/firebase';
 import type { Participant, MonthlyPlan, User } from '@/lib/types';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Users } from 'lucide-react';
 
 async function getDashboardData() {
+    const { firestore } = initializeFirebase();
     const today = new Date();
     const monthId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
 
-    const planDocRef = doc(db, 'monthlyPlans', monthId);
-    const usersCollectionRef = collection(db, 'users');
-    const participantsCollectionRef = collection(db, `monthlyPlans/${monthId}/participants`);
+    const planDocRef = doc(firestore, 'monthlyPlans', monthId);
+    const usersCollectionRef = collection(firestore, 'users');
+    const participantsCollectionRef = collection(firestore, `monthlyPlans/${monthId}/participants`);
 
     const [planDocSnap, usersSnap, participantsSnap] = await Promise.all([
         getDoc(planDocRef),

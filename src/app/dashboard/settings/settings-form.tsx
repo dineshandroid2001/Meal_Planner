@@ -1,43 +1,43 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import type { MonthlyPlan } from '@/lib/types';
-import { useAuth } from '@/hooks/use-auth';
+import type { MonthlyPlan, User } from '@/lib/types';
+import { useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { doc, setDoc } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { doc } from 'firebase/firestore';
 
 type SettingsFormProps = {
     monthlyPlan: MonthlyPlan;
 };
 
 export default function SettingsForm({ monthlyPlan }: SettingsFormProps) {
-    const { user } = useAuth();
+    const { user } = useUser();
+    const firestore = useFirestore();
     const router = useRouter();
     const { toast } = useToast();
     const [expense, setExpense] = useState(monthlyPlan.monthlyExpense);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     useEffect(() => {
-        if (user && !user.isAdmin) {
+        if (user && !(user as User).isAdmin) {
             toast({ title: "Access Denied", description: "You are not an admin.", variant: "destructive" });
             router.push('/dashboard');
         }
     }, [user, router, toast]);
 
     const handleSave = async () => {
-        if (!user || !user.isAdmin) return;
+        if (!user || !(user as User).isAdmin) return;
         setIsSubmitting(true);
         try {
             const today = new Date();
             const monthId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-            const planDocRef = doc(db, 'monthlyPlans', monthId);
+            const planDocRef = doc(firestore, 'monthlyPlans', monthId);
 
-            await setDoc(planDocRef, {
+            setDocumentNonBlocking(planDocRef, {
                 monthlyExpense: expense,
                 lastUpdatedAt: new Date(),
                 lastUpdatedBy: user.displayName || user.email,
@@ -53,7 +53,7 @@ export default function SettingsForm({ monthlyPlan }: SettingsFormProps) {
         }
     };
 
-    if (!user?.isAdmin) {
+    if (!(user as User)?.isAdmin) {
         return null;
     }
 

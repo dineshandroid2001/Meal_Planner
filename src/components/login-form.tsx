@@ -1,8 +1,8 @@
 "use client";
 
-import { GoogleAuthProvider, signInWithPopup, User } from 'firebase/auth';
-import { auth, db } from '@/lib/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { GoogleAuthProvider, signInWithPopup, User as FirebaseUser } from 'firebase/auth';
+import { useAuth, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
@@ -19,6 +19,8 @@ const GoogleIcon = (props: React.SVGProps<SVGSVGElement>) => (
 export default function LoginForm() {
   const router = useRouter();
   const { toast } = useToast();
+  const auth = useAuth();
+  const firestore = useFirestore();
 
   const handleSignIn = async () => {
     const provider = new GoogleAuthProvider();
@@ -26,25 +28,24 @@ export default function LoginForm() {
       const result = await signInWithPopup(auth, provider);
       const user = result.user;
 
-      // Check if user exists, if not, create a new document
-      const userDocRef = doc(db, 'users', user.uid);
+      const userDocRef = doc(firestore, 'users', user.uid);
       const userDoc = await getDoc(userDocRef);
 
       if (!userDoc.exists()) {
-        await setDoc(userDocRef, {
+        const appConfigDoc = await getDoc(doc(firestore, 'app-config', 'admin'));
+        const isAdmin = !appConfigDoc.exists();
+
+        setDocumentNonBlocking(userDocRef, {
           uid: user.uid,
           displayName: user.displayName,
           email: user.email,
           photoURL: user.photoURL,
-          // First user to sign up is admin, or implement your own logic
-          isAdmin: (await getDoc(doc(db, 'app-config', 'admin'))).exists() ? false : true,
-        });
+          isAdmin: isAdmin,
+        }, { merge: true });
 
-        // Set the first user as admin in a separate doc to check against later.
-        if (! (await getDoc(doc(db, 'app-config', 'admin'))).exists() ){
-          await setDoc(doc(db, 'app-config', 'admin'), { uid: user.uid });
+        if (isAdmin) {
+          setDocumentNonBlocking(doc(firestore, 'app-config', 'admin'), { uid: user.uid }, { merge: true });
         }
-
       }
 
       toast({
