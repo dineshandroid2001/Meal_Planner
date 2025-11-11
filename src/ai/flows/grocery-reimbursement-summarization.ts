@@ -15,12 +15,12 @@ const GroceryReimbursementInputSchema = z.object({
     .string()
     .describe(
       "A photo of the grocery receipt, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
-    ),
+    ).optional(),
   paymentScreenshotDataUri: z
     .string()
     .describe(
       "A photo of the payment screenshot, as a data URI that must include a MIME type and use Base64 encoding. Expected format: 'data:<mimetype>;base64,<encoded_data>'."
-    ),
+    ).optional(),
   expectedTotalAmount: z.number().describe('The expected total amount of the grocery expense.'),
   description: z.string().describe('A description of the groceries purchased.'),
 });
@@ -54,11 +54,11 @@ You will receive a grocery receipt image, a payment screenshot, the expected tot
 Analyze the following information:
 
 Description: {{{description}}}
-Receipt: {{media url=receiptDataUri}}
-Payment Screenshot: {{media url=paymentScreenshotDataUri}}
+{{#if receiptDataUri}}Receipt: {{media url=receiptDataUri}}{{/if}}
+{{#if paymentScreenshotDataUri}}Payment Screenshot: {{media url=paymentScreenshotDataUri}}{{/if}}
 Expected Total Amount: {{{expectedTotalAmount}}}
 
-Generate a summary, determine the alignment, and describe any discrepancies found. Be specific and clear in your analysis.`,
+Generate a summary, determine the alignment, and describe any discrepancies found. Be specific and clear in your analysis. If images are not provided, base your analysis on the description and amount alone.`,
 });
 
 const groceryReimbursementFlow = ai.defineFlow(

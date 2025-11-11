@@ -57,8 +57,8 @@ export default function ReimbursementClient() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user || !receiptFile || !paymentFile || !description || !amount || !firestore) {
-            toast({ title: 'Missing fields', description: 'Please fill out all fields and upload both images.', variant: 'destructive' });
+        if (!user || !description || !amount || !firestore) {
+            toast({ title: 'Missing fields', description: 'Please fill out description and amount.', variant: 'destructive' });
             return;
         }
 
@@ -66,8 +66,8 @@ export default function ReimbursementClient() {
         toast({ title: 'Submitting...', description: 'Analyzing your request with AI. This may take a moment.' });
         
         try {
-            const receiptDataUri = await fileToDataUri(receiptFile);
-            const paymentScreenshotDataUri = await fileToDataUri(paymentFile);
+            const receiptDataUri = receiptFile ? await fileToDataUri(receiptFile) : undefined;
+            const paymentScreenshotDataUri = paymentFile ? await fileToDataUri(paymentFile) : undefined;
             
             const aiResult = await groceryReimbursementSummarization({
                 receiptDataUri,
@@ -76,15 +76,21 @@ export default function ReimbursementClient() {
                 description,
             });
 
+            let receiptUrl: string | undefined = undefined;
+            let paymentUrl: string | undefined = undefined;
             const timestamp = Date.now();
-            const receiptRef = ref(storage, `reimbursements/${user.uid}/${timestamp}_receipt`);
-            const paymentRef = ref(storage, `reimbursements/${user.uid}/${timestamp}_payment`);
 
-            await uploadString(receiptRef, receiptDataUri, 'data_url');
-            await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url');
+            if (receiptDataUri && receiptFile) {
+                const receiptRef = ref(storage, `reimbursements/${user.uid}/${timestamp}_receipt`);
+                await uploadString(receiptRef, receiptDataUri, 'data_url');
+                receiptUrl = await getDownloadURL(receiptRef);
+            }
 
-            const receiptUrl = await getDownloadURL(receiptRef);
-            const paymentUrl = await getDownloadURL(paymentRef);
+            if (paymentScreenshotDataUri && paymentFile) {
+                const paymentRef = ref(storage, `reimbursements/${user.uid}/${timestamp}_payment`);
+                await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url');
+                paymentUrl = await getDownloadURL(paymentRef);
+            }
             
             const newRequest: Omit<ReimbursementRequest, 'id'> = {
                 userId: user.uid,
@@ -137,12 +143,12 @@ export default function ReimbursementClient() {
                         <Input id="amount" type="number" placeholder="1250.00" value={amount} onChange={e => setAmount(e.target.value)} required />
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="receipt">Receipt Photo</Label>
-                        <Input id="receipt" type="file" accept="image/*" onChange={e => setReceiptFile(e.target.files?.[0] || null)} required/>
+                        <Label htmlFor="receipt">Receipt Photo (Optional)</Label>
+                        <Input id="receipt" type="file" accept="image/*" onChange={e => setReceiptFile(e.target.files?.[0] || null)} />
                     </div>
                     <div className="grid gap-2">
-                        <Label htmlFor="payment">Payment Screenshot</Label>
-                        <Input id="payment" type="file" accept="image/*" onChange={e => setPaymentFile(e.target.files?.[0] || null)} required/>
+                        <Label htmlFor="payment">Payment Screenshot (Optional)</Label>
+                        <Input id="payment" type="file" accept="image/*" onChange={e => setPaymentFile(e.target.files?.[0] || null)} />
                     </div>
                 </CardContent>
                 <CardFooter>
@@ -207,14 +213,18 @@ export default function ReimbursementClient() {
                                                     <p><strong>Discrepancies:</strong> {req.aiDiscrepancies || 'None'}</p>
                                                 </div>
                                                 <div className="grid grid-cols-2 gap-4">
-                                                    <div>
-                                                        <Label>Receipt</Label>
-                                                        <Image src={req.receiptUrl || "https://picsum.photos/seed/receipt/400/600"} alt="Receipt" width={250} height={400} className="rounded-md object-cover" />
-                                                    </div>
-                                                    <div>
-                                                        <Label>Payment</Label>
-                                                        <Image src={req.paymentUrl || "https://picsum.photos/seed/payment/400/600"} alt="Payment" width={250} height={400} className="rounded-md object-cover" />
-                                                    </div>
+                                                    {req.receiptUrl && (
+                                                        <div>
+                                                            <Label>Receipt</Label>
+                                                            <Image src={req.receiptUrl} alt="Receipt" width={250} height={400} className="rounded-md object-cover" />
+                                                        </div>
+                                                    )}
+                                                    {req.paymentUrl && (
+                                                        <div>
+                                                            <Label>Payment</Label>
+                                                            <Image src={req.paymentUrl} alt="Payment" width={250} height={400} className="rounded-md object-cover" />
+                                                        </div>
+                                                    )}
                                                 </div>
                                                 {(user as User)?.isAdmin && req.status === 'pending' && (
                                                     <div className="flex gap-2 justify-end">
