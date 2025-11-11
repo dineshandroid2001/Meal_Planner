@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Eye, EyeOff } from 'lucide-react';
 import GoogleSignInButton from '@/components/google-signin-button';
 
 export default function LoginForm() {
@@ -23,6 +24,7 @@ export default function LoginForm() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authAction, setAuthAction] = useState<'signIn' | 'signUp' | null>(null);
 
@@ -121,13 +123,28 @@ export default function LoginForm() {
       </div>
       <div className="space-y-2">
         <Label htmlFor="password">Password</Label>
-        <Input 
-          id="password" 
-          type="password" 
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          required 
-        />
+        <div className="relative">
+          <Input 
+            id="password" 
+            type={showPassword ? "text" : "password"} 
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required 
+            className="pr-10"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute inset-y-0 right-0 flex items-center pr-3 hover:opacity-75"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? (
+              <EyeOff className="h-4 w-4 text-gray-500" />
+            ) : (
+              <Eye className="h-4 w-4 text-gray-500" />
+            )}
+          </button>
+        </div>
       </div>
       <div className="flex flex-col space-y-2 sm:flex-row sm:space-y-0 sm:gap-2">
         <Button onClick={() => handleAuthAction('signIn')} disabled={isSubmitting} className="w-full">
