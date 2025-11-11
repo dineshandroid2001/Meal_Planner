@@ -7,6 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/comp
 import { cn } from '@/lib/utils';
 import { useUser } from '@/firebase';
 import { User } from '@/lib/types';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 
 const navItems = [
@@ -19,6 +20,12 @@ const navItems = [
 export default function Sidebar() {
     const pathname = usePathname();
     const { user } = useUser();
+    const isMobile = useIsMobile();
+  
+    // On mobile, sidebar is handled by header component, so we don't render anything
+    if (isMobile) {
+        return null;
+    }
   
     return (
         <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
@@ -26,9 +33,9 @@ export default function Sidebar() {
                 <nav className="flex flex-col items-center gap-4 px-2 py-4">
                     <Link
                       href="/dashboard"
-                      className="group flex h-9 w-9 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-8 md:w-8 md:text-base"
+                      className="group flex h-11 w-11 shrink-0 items-center justify-center gap-2 rounded-full bg-primary text-lg font-semibold text-primary-foreground md:h-10 md:w-10 md:text-base hover:bg-primary/90 transition-colors"
                     >
-                      <UtensilsCrossed className="h-4 w-4 transition-all group-hover:scale-110" />
+                      <UtensilsCrossed className="h-5 w-5 transition-all group-hover:scale-110" />
                       <span className="sr-only">Roommate Meal Planner</span>
                     </Link>
                     {navItems.map((item) => {
@@ -41,7 +48,7 @@ export default function Sidebar() {
                                     <Link
                                         href={item.href}
                                         className={cn(
-                                            'flex h-9 w-9 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground md:h-8 md:w-8',
+                                            'flex h-11 w-11 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:text-foreground hover:bg-accent md:h-10 md:w-10',
                                             (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))) && 'bg-accent text-accent-foreground'
                                         )}
                                     >

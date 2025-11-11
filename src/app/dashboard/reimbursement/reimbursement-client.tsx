@@ -16,6 +16,7 @@ import { ReimbursementRequest, User } from '@/lib/types';
 import { formatINR } from '@/lib/utils';
 import { collection, query, orderBy, Timestamp, doc } from 'firebase/firestore';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
 import Image from 'next/image';
@@ -214,29 +215,51 @@ export default function ReimbursementClient() {
     const isLoading = isLoadingReimbursements || areRoommatesLoading;
 
     return (
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
+        <div className="grid gap-4 lg:grid-cols-7">
             <Card className="lg:col-span-3">
                 <CardHeader>
-                    <CardTitle>Submit Reimbursement</CardTitle>
+                    <CardTitle className="text-lg">Submit Reimbursement</CardTitle>
                     <CardDescription>Upload your payment details for AI-powered analysis.</CardDescription>
                 </CardHeader>
                 <form id="reimbursement-form" onSubmit={handleSubmit}>
                 <CardContent className="grid gap-4">
-                    <div className="grid gap-2">
-                        <Label htmlFor="description">Description</Label>
-                        <Textarea id="description" placeholder="e.g., Weekly groceries" value={description} onChange={e => setDescription(e.target.value)} required />
+                    <div className="grid gap-3">
+                        <Label htmlFor="description" className="text-sm font-medium">Description</Label>
+                        <Textarea 
+                            id="description" 
+                            placeholder="e.g., Weekly groceries" 
+                            value={description} 
+                            onChange={e => setDescription(e.target.value)} 
+                            required 
+                            className="min-h-[80px] resize-none"
+                        />
                     </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="amount">Total Amount (INR)</Label>
-                        <Input id="amount" type="number" placeholder="1250.00" value={amount} onChange={e => setAmount(e.target.value)} required />
+                    <div className="grid gap-3">
+                        <Label htmlFor="amount" className="text-sm font-medium">Total Amount (INR)</Label>
+                        <Input 
+                            id="amount" 
+                            type="number" 
+                            step="0.01"
+                            placeholder="1250.00" 
+                            value={amount} 
+                            onChange={e => setAmount(e.target.value)} 
+                            required 
+                            className="h-11"
+                        />
                     </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="payment">Payment Screenshot</Label>
-                        <Input id="payment" type="file" accept="image/*" onChange={e => setPaymentFile(e.target.files?.[0] || null)} />
+                    <div className="grid gap-3">
+                        <Label htmlFor="payment" className="text-sm font-medium">Payment Screenshot</Label>
+                        <Input 
+                            id="payment" 
+                            type="file" 
+                            accept="image/*" 
+                            onChange={e => setPaymentFile(e.target.files?.[0] || null)} 
+                            className="h-11 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                        />
                     </div>
                 </CardContent>
                 <CardFooter>
-                    <Button type="submit" disabled={isSubmitting} className="w-full sm:w-auto">
+                    <Button type="submit" disabled={isSubmitting} className="w-full h-11">
                         {isSubmitting ? 'Submitting...' : 'Submit Request'}
                     </Button>
                 </CardFooter>
@@ -246,22 +269,26 @@ export default function ReimbursementClient() {
             <div className="lg:col-span-4 grid gap-4 auto-rows-max">
                 <Card>
                     <CardHeader>
-                        <CardTitle>Reimbursement Summary</CardTitle>
+                        <CardTitle className="text-lg">Reimbursement Summary</CardTitle>
                         <CardDescription>Total pending and approved amounts for each roommate.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>User</TableHead>
-                                    <TableHead className="text-right">Pending</TableHead>
-                                    <TableHead className="text-right flex items-center justify-end gap-2">
-                                        Approved
-                                        <CheckCircle className="h-4 w-4 text-green-500" />
-                                    </TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
+                        <div className="rounded-md border">
+                            <ScrollArea className="h-[300px]">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead className="sticky top-0 bg-background">User</TableHead>
+                                            <TableHead className="text-right sticky top-0 bg-background">Pending</TableHead>
+                                            <TableHead className="text-right sticky top-0 bg-background">
+                                                <div className="flex items-center justify-end gap-2">
+                                                    Approved
+                                                    <CheckCircle className="h-4 w-4 text-green-500" />
+                                                </div>
+                                            </TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
                                 {isLoading ? (
                                     <TableRow>
                                         <TableCell colSpan={3} className="h-24 text-center">
@@ -275,8 +302,10 @@ export default function ReimbursementClient() {
                                         <TableCell className="text-right">{formatINR(summary.approved)}</TableCell>
                                     </TableRow>
                                 ))}
-                            </TableBody>
-                        </Table>
+                                    </TableBody>
+                                </Table>
+                            </ScrollArea>
+                        </div>
                     </CardContent>
                 </Card>
 

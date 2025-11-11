@@ -49,67 +49,67 @@ export default function DashboardSummary() {
 
     if (isLoading) {
         return (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-                <Skeleton className="h-28 w-full" />
-                <Skeleton className="h-28 w-full" />
-                <Skeleton className="h-28 w-full" />
-                <Skeleton className="h-28 w-full" />
-                <Skeleton className="h-28 w-full" />
+            <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full" />
+                <Skeleton className="h-32 w-full" />
             </div>
         )
     }
 
 
     return (
-        <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                     <CardTitle className="text-sm font-medium">Total Monthly Expense</CardTitle>
-                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    <DollarSign className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">₹{monthlyPlan?.monthlyExpense?.toFixed(2) ?? '0.00'}</div>
-                    <p className="text-xs text-muted-foreground">The total budget for the current month.</p>
+                    <p className="text-xs text-muted-foreground mt-1">The total budget for the current month.</p>
                 </CardContent>
             </Card>
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                     <CardTitle className="text-sm font-medium">Gross Allocated Cost</CardTitle>
-                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    <TrendingUp className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">₹{grossAllocatedCost.toFixed(2)}</div>
-                    <p className="text-xs text-muted-foreground">Total to be collected before reimbursements.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Total to be collected before reimbursements.</p>
                 </CardContent>
             </Card>
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                     <CardTitle className="text-sm font-medium">Balance to Collect</CardTitle>
-                    <Users className="h-4 w-4 text-muted-foreground" />
+                    <Users className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">₹{netAllocatedCost.toFixed(2)}</div>
-                    <p className="text-xs text-muted-foreground">Net cost after approved reimbursements.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Net cost after approved reimbursements.</p>
                 </CardContent>
             </Card>
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                     <CardTitle className="text-sm font-medium">Pending Reimbursements</CardTitle>
-                    <CreditCard className="h-4 w-4 text-muted-foreground" />
+                    <CreditCard className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">₹{totalPendingReimbursements.toFixed(2)}</div>
-                    <p className="text-xs text-muted-foreground">Total amount pending for reimbursement.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Total amount pending for reimbursement.</p>
                 </CardContent>
             </Card>
             <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
                     <CardTitle className="text-sm font-medium">Approved Reimbursements</CardTitle>
-                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                    <CheckCircle className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">₹{totalApprovedReimbursements.toFixed(2)}</div>
-                    <p className="text-xs text-muted-foreground">Total amount already reimbursed.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Total amount already reimbursed.</p>
                 </CardContent>
             </Card>
         </div>

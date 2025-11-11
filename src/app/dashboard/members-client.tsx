@@ -201,7 +201,13 @@ function MembersList() {
                                 <TableCell className="hidden md:table-cell">
                                     {p.days > 0 && p.lastUpdatedAt && (
                                     <div className="flex items-center gap-2">
-                                        {format(p.lastUpdatedAt, 'PPp')}
+                                        {(() => {
+                                            if (p.lastUpdatedAt instanceof Date) return format(p.lastUpdatedAt, 'PPp');
+                                            if (typeof p.lastUpdatedAt === 'object' && p.lastUpdatedAt && 'toDate' in p.lastUpdatedAt) {
+                                                return format(p.lastUpdatedAt.toDate(), 'PPp');
+                                            }
+                                            return format(new Date(p.lastUpdatedAt as string), 'PPp');
+                                        })()}
                                         <Tooltip>
                                             <TooltipTrigger asChild>
                                                 <Info className="h-4 w-4 text-muted-foreground" />

@@ -74,21 +74,23 @@ export default function SettingsForm() {
     }
 
     return (
-        <div className="grid gap-6">
+        <div className="grid gap-6 max-w-md">
             <div className="grid gap-3">
-                <Label htmlFor="monthly-expense">Monthly Food Expense (₹)</Label>
+                <Label htmlFor="monthly-expense" className="text-sm font-medium">Monthly Food Expense (₹)</Label>
                 <Input
                     id="monthly-expense"
                     type="number"
-                    className="w-full"
+                    step="0.01"
+                    className="w-full h-11"
                     value={expense}
                     onChange={(e) => setExpense(Number(e.target.value))}
+                    placeholder="Enter monthly expense amount"
                 />
                 <p className="text-sm text-muted-foreground">
                     This amount will be used to calculate the cost per person based on their participation.
                 </p>
             </div>
-            <Button onClick={handleSave} disabled={isSubmitting}>
+            <Button onClick={handleSave} disabled={isSubmitting} className="w-full h-11">
                 {isSubmitting ? 'Saving...' : 'Save Settings'}
             </Button>
         </div>

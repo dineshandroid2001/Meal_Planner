@@ -70,3 +70,26 @@ body {
     @apply bg-background text-foreground;
   }
 }
+
+@layer utilities {
+  /* Mobile-first button touch targets - minimum 44px */
+  .btn-touch {
+    @apply min-h-[44px] min-w-[44px];
+  }
+  
+  /* Improved scrolling on mobile */
+  .scroll-smooth-mobile {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+  }
+  
+  /* Better tap highlights */
+  .tap-highlight-none {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Mobile-friendly focus states */
+  .focus-mobile {
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary;
+  }
+}
