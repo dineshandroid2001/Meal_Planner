@@ -35,7 +35,9 @@ export default function SettingsForm() {
 
     useEffect(() => {
         if (monthlyPlan) {
-            setExpense(monthlyPlan.monthlyExpense);
+            setExpense(monthlyPlan.monthlyExpense || 0);
+        } else {
+            setExpense(0);
         }
     }, [monthlyPlan]);
 
