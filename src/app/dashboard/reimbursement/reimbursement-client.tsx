@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { useUser, useFirestore, addDocumentNonBlocking, useCollection, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, addDocumentNonBlocking, useCollection, useMemoFirebase, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { getStorage, ref, uploadString, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { ReimbursementRequest, User } from '@/lib/types';
@@ -24,6 +24,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogClose,
 } from "@/components/ui/dialog";
 import { Skeleton } from '@/components/ui/skeleton';
 import { Trash2 } from 'lucide-react';
@@ -69,17 +70,22 @@ export default function ReimbursementClient() {
 
     const reimbursementSummary = useMemo(() => {
         if (!reimbursements) return [];
-    
-        const summary = new Map<string, number>();
+
+        const summary = new Map<string, { pending: number, approved: number }>();
         reimbursements.forEach(req => {
-            const currentTotal = summary.get(req.roommateId) || 0;
-            summary.set(req.roommateId, currentTotal + req.amount);
+            const current = summary.get(req.roommateId) || { pending: 0, approved: 0 };
+            if (req.status === 'pending') {
+                current.pending += req.amount;
+            } else if (req.status === 'approved') {
+                current.approved += req.amount;
+            }
+            summary.set(req.roommateId, current);
         });
-    
-        return Array.from(summary.entries()).map(([roommateId, totalAmount]) => ({
+
+        return Array.from(summary.entries()).map(([roommateId, totals]) => ({
             roommateId,
             roommateName: roommatesMap.get(roommateId) || 'Unknown',
-            totalAmount,
+            ...totals
         }));
     }, [reimbursements, roommatesMap]);
 
@@ -168,6 +174,17 @@ export default function ReimbursementClient() {
         toast({ title: "Request Deleted", description: "The reimbursement request has been removed." });
     };
 
+    const handleStatusChange = (reimbursementId: string, status: 'approved' | 'rejected') => {
+        if (!firestore || !(user as User)?.isAdmin) {
+            toast({ title: "Permission Denied", description: "You are not authorized to update requests.", variant: "destructive" });
+            return;
+        }
+        
+        const docRef = doc(firestore, 'reimbursements', reimbursementId);
+        setDocumentNonBlocking(docRef, { status }, { merge: true });
+        toast({ title: `Request ${status}`, description: `The reimbursement request has been ${status}.` });
+    };
+
     const formatDate = (timestamp: Timestamp) => {
         if (timestamp && typeof timestamp.toDate === 'function') {
             return format(timestamp.toDate(), 'PP');
@@ -222,27 +239,29 @@ export default function ReimbursementClient() {
                 <Card>
                     <CardHeader>
                         <CardTitle>Reimbursement Summary</CardTitle>
-                        <CardDescription>Total amounts requested by each roommate.</CardDescription>
+                        <CardDescription>Total pending and approved amounts for each roommate.</CardDescription>
                     </CardHeader>
                     <CardContent>
                         <Table>
                             <TableHeader>
                                 <TableRow>
                                     <TableHead>User</TableHead>
-                                    <TableHead className="text-right">Total Amount</TableHead>
+                                    <TableHead className="text-right">Pending</TableHead>
+                                    <TableHead className="text-right">Approved</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
                                 {isLoading ? (
                                     <TableRow>
-                                        <TableCell colSpan={2} className="h-24 text-center">
+                                        <TableCell colSpan={3} className="h-24 text-center">
                                             <Skeleton className="h-8 w-full" />
                                         </TableCell>
                                     </TableRow>
                                 ) : reimbursementSummary.map(summary => (
                                     <TableRow key={summary.roommateId}>
                                         <TableCell className="font-medium">{summary.roommateName}</TableCell>
-                                        <TableCell className="text-right">₹{summary.totalAmount.toFixed(2)}</TableCell>
+                                        <TableCell className="text-right">₹{summary.pending.toFixed(2)}</TableCell>
+                                        <TableCell className="text-right">₹{summary.approved.toFixed(2)}</TableCell>
                                     </TableRow>
                                 ))}
                             </TableBody>
@@ -318,11 +337,14 @@ export default function ReimbursementClient() {
                                                         )}
                                                     </div>
                                                     {(user as User)?.isAdmin && req.status === 'pending' && (
-                                                        <div className="flex gap-2 justify-end">
-                                                            <Button variant="destructive" size="sm" disabled>Reject</Button>
-
-                                                            <Button size="sm" disabled>Approve</Button>
-                                                        </div>
+                                                         <DialogFooter>
+                                                             <DialogClose asChild>
+                                                                <Button variant="destructive" size="sm" onClick={() => handleStatusChange(req.id, 'rejected')}>Reject</Button>
+                                                             </DialogClose>
+                                                             <DialogClose asChild>
+                                                                <Button size="sm" onClick={() => handleStatusChange(req.id, 'approved')}>Approve</Button>
+                                                             </DialogClose>
+                                                        </DialogFooter>
                                                     )}
                                                 </div>
                                             </DialogContent>
@@ -360,3 +382,4 @@ export default function ReimbursementClient() {
         </div>
     );
 }
+

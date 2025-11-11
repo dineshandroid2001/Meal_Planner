@@ -1,3 +1,4 @@
+
 'use client';
 
 import React, { useMemo } from 'react';
@@ -28,9 +29,9 @@ export default function DashboardSummary() {
         return participantsData.reduce((acc, p) => acc + (p.days * costPerDay), 0);
     }, [participantsData, monthlyPlan]);
     
-    const totalReimbursements = useMemo(() => {
+    const totalPendingReimbursements = useMemo(() => {
         if (!reimbursementsData) return 0;
-        return reimbursementsData.reduce((acc, r) => acc + r.amount, 0);
+        return reimbursementsData.filter(r => r.status === 'pending').reduce((acc, r) => acc + r.amount, 0);
     }, [reimbursementsData]);
 
     const isLoading = isPlanLoading || areParticipantsLoading || areReimbursementsLoading;
@@ -70,12 +71,12 @@ export default function DashboardSummary() {
             </Card>
             <Card>
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                    <CardTitle className="text-sm font-medium">Total Reimbursements</CardTitle>
+                    <CardTitle className="text-sm font-medium">Pending Reimbursements</CardTitle>
                     <CreditCard className="h-4 w-4 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">₹{totalReimbursements.toFixed(2)}</div>
-                    <p className="text-xs text-muted-foreground">Total amount requested for reimbursement.</p>
+                    <div className="text-2xl font-bold">₹{totalPendingReimbursements.toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground">Total amount pending for reimbursement.</p>
                 </CardContent>
             </Card>
         </div>
