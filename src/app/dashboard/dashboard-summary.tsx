@@ -52,7 +52,7 @@ export default function DashboardSummary() {
         const validRoommateIds = new Set(allRoommates.map(r => r.id));
         
         return participantsData
-            .filter(p => p.id && validRoommateIds.has(p.id) && p.days !== undefined && p.days !== null)
+            .filter(p => p.isPaid && p.id && validRoommateIds.has(p.id) && p.days !== undefined && p.days !== null)
             .reduce((acc, p) => {
                 if (p.days === 0) {
                     return acc + MAINTENANCE_COST;
@@ -62,6 +62,7 @@ export default function DashboardSummary() {
             }, 0);
             
     }, [participantsData, monthlyPlan, allRoommates]);
+
 
     const balance = useMemo(() => {
         return totalCollectedAmount - totalApprovedReimbursements;
@@ -101,7 +102,7 @@ export default function DashboardSummary() {
                 </CardHeader>
                 <CardContent>
                     <div className="text-2xl font-bold">Rs {totalCollectedAmount.toFixed(2)}</div>
-                    <p className="text-xs text-muted-foreground mt-1">Sum of all participants' costs.</p>
+                    <p className="text-xs text-muted-foreground mt-1">Sum of all confirmed paid costs.</p>
                 </CardContent>
             </Card>
             <Card>

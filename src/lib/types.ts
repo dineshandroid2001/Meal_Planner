@@ -17,6 +17,7 @@ export type Participant = {
   lastUpdatedBy: string;
   lastUpdatedAt: Date | Timestamp | string | null;
   isAdmin: boolean;
+  isPaid?: boolean;
 };
 
 export type AuditLog = {
@@ -46,4 +47,3 @@ export type ReimbursementRequest = {
   status: 'pending' | 'approved' | 'rejected';
   submittedAt: any;
 };
-

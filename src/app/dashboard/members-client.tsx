@@ -13,7 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { doc, collection, Timestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipProvider, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
-import { Info, Trash2 } from 'lucide-react';
+import { Info, Trash2, CheckCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -68,6 +68,7 @@ function MembersList() {
         const combinedList = allRoommates?.map(roommate => {
             const firestoreParticipant = participantsData?.find(p => p.id === roommate.id);
             const days = firestoreParticipant?.days ?? 0;
+            const isPaid = firestoreParticipant?.isPaid ?? false;
             
             let lastUpdatedAtDate: Date | null = null;
             if (firestoreParticipant?.lastUpdatedAt) {
@@ -89,6 +90,7 @@ function MembersList() {
                 lastUpdatedAt: lastUpdatedAtDate,
                 lastUpdatedBy: firestoreParticipant?.lastUpdatedBy || 'System',
                 isAdmin: roommate.isAdmin || false,
+                isPaid: isPaid,
             };
         }) || [];
 
@@ -108,8 +110,10 @@ function MembersList() {
 
         const participantDocRef = doc(firestore, `monthlyPlans/${monthId}/participations`, participantId);
 
+        // When days change, reset payment status
         const updatedParticipantData = {
             days: newDays,
+            isPaid: false, 
             lastUpdatedAt: new Date(),
             lastUpdatedBy: user.name || user.displayName || user.email || 'Unknown User',
         };
@@ -118,9 +122,28 @@ function MembersList() {
 
         toast({
             title: "Plan Updated",
-            description: `Your participation has been set to ${newDays} days.`,
+            description: `Participation set to ${newDays} days. Awaiting payment confirmation.`,
         });
     };
+    
+    const handleMarkAsPaid = (participantId: string) => {
+        if (!user || !(user as User).isAdmin || !firestore) {
+            toast({ title: "Permission Denied", description: "Only admins can mark payments as paid.", variant: "destructive" });
+            return;
+        }
+        
+        const participantDocRef = doc(firestore, `monthlyPlans/${monthId}/participations`, participantId);
+        
+        const updatedData = {
+            isPaid: true,
+            paidAt: new Date(), // Optional: track when it was paid
+        };
+
+        setDocumentNonBlocking(participantDocRef, updatedData, { merge: true });
+        
+        toast({ title: "Payment Confirmed", description: "The member's contribution has been marked as paid." });
+    };
+
 
     const handleDeleteMember = (participantId: string) => {
         if (!firestore || !(user as User)?.isAdmin) {
@@ -178,6 +201,7 @@ function MembersList() {
                             <TableHead>Member</TableHead>
                             <TableHead>Participation (Days)</TableHead>
                             <TableHead>Calculated Cost</TableHead>
+                            <TableHead>Payment Status</TableHead>
                             <TableHead className="hidden md:table-cell">Last Updated</TableHead>
                             <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
@@ -214,6 +238,24 @@ function MembersList() {
                                     </Select>
                                 </TableCell>
                                 <TableCell>{formatINR(p.cost)}</TableCell>
+                                <TableCell>
+                                    {p.isPaid ? (
+                                        <Badge variant="default" className="gap-1.5 pl-2 pr-2.5 py-1 text-sm">
+                                            <CheckCircle className="h-4 w-4" />
+                                            Paid
+                                        </Badge>
+                                    ) : (
+                                        <Button 
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleMarkAsPaid(p.id)}
+                                            disabled={!(user as User)?.isAdmin}
+                                            className="h-9"
+                                        >
+                                            Mark as Paid
+                                        </Button>
+                                    )}
+                                </TableCell>
                                 <TableCell className="hidden md:table-cell">
                                     {p.days > 0 && p.lastUpdatedAt && (
                                     <div className="flex items-center gap-2">
@@ -273,5 +315,3 @@ function MembersList() {
 export default function MembersClient() {
     return <MembersList />;
 }
-
-    
