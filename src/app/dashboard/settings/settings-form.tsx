@@ -3,13 +3,13 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import type { MonthlyPlan, User } from '@/lib/types';
-import { useUser, useFirestore, setDocumentNonBlocking, useDoc, useMemoFirebase, useCollection } from '@/firebase';
+import { useUser, useFirestore, setDocumentNonBlocking, useDoc, useMemoFirebase, useCollection, deleteDocumentNonBlocking } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { doc, collection } from 'firebase/firestore';
+import { doc, collection, getDocs, query } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -122,6 +122,40 @@ export default function SettingsForm() {
             setIsSubmitting(false);
         }
     };
+
+    const handleResetMonth = async () => {
+        if (!firestore) {
+            toast({ title: "Error", description: "Database not available.", variant: "destructive" });
+            return;
+        }
+
+        setIsSubmitting(true);
+        toast({ title: "Resetting...", description: "Please wait while the data is being reset." });
+
+        try {
+            // 1. Delete all reimbursements
+            const reimbursementsQuery = query(collection(firestore, 'reimbursements'));
+            const reimbursementsSnapshot = await getDocs(reimbursementsQuery);
+            reimbursementsSnapshot.forEach(doc => {
+                deleteDocumentNonBlocking(doc.ref);
+            });
+
+            // 2. Reset all participations for the current month
+            const participationsQuery = query(collection(firestore, `monthlyPlans/${monthId}/participations`));
+            const participationsSnapshot = await getDocs(participationsQuery);
+            participationsSnapshot.forEach(doc => {
+                setDocumentNonBlocking(doc.ref, { days: 0, isPaid: false }, { merge: true });
+            });
+
+            toast({ title: "Success", description: "All reimbursements have been deleted and participation has been reset." });
+
+        } catch (error) {
+            console.error("Failed to reset month data:", error);
+            toast({ title: "Error", description: "Failed to reset data. Please try again.", variant: "destructive" });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
     
     const isLoading = isPlanLoading || areRoommatesLoading;
 
@@ -205,7 +239,41 @@ export default function SettingsForm() {
                     </AlertDialogContent>
                 </AlertDialog>
             </div>
+
+            <Separator className="my-4" />
+            
+            {/* Reset Data Section */}
+            <div className="grid gap-3">
+                <h3 className="text-lg font-medium">Reset Month Data</h3>
+                <p className="text-sm text-muted-foreground">
+                    This will delete all reimbursement requests for the current month and reset every member's participation days to zero. This action cannot be undone.
+                </p>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button
+                            variant="destructive"
+                            disabled={isSubmitting}
+                            className="w-full h-11"
+                        >
+                            {isSubmitting ? 'Resetting...' : 'Reset All Month Data'}
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Are you sure you want to reset all data for this month?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                This will permanently delete all reimbursement requests and reset all participation days to 0. This action cannot be undone.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleResetMonth}>
+                                Yes, Reset Data
+                            </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </div>
         </div>
     );
 }
-
