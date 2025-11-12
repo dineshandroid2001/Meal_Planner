@@ -110,14 +110,14 @@ export default function SettingsForm() {
             const newAdminRef = doc(firestore, 'roommates', newAdminId);
             const appConfigRef = doc(firestore, 'app-config', 'admin');
 
-            // 1. Demote current admin
-            setDocumentNonBlocking(currentAdminRef, { isAdmin: false }, { merge: true });
-            
-            // 2. Promote new admin
+            // 1. Promote new admin
             setDocumentNonBlocking(newAdminRef, { isAdmin: true }, { merge: true });
 
-            // 3. Update the global admin config
+            // 2. Update the global admin config
             setDocumentNonBlocking(appConfigRef, { uid: newAdminId }, { merge: true });
+
+            // 3. Demote current admin
+            setDocumentNonBlocking(currentAdminRef, { isAdmin: false }, { merge: true });
             
             toast({ title: "Admin Role Transferred", description: "The new admin has been appointed." });
             router.push('/dashboard');
@@ -295,5 +295,3 @@ export default function SettingsForm() {
         </div>
     );
 }
-
-    
