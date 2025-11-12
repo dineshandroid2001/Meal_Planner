@@ -35,10 +35,10 @@ function MembersList() {
     const { user } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
-    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState<{[key: string]: boolean}>({});
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [isDirty, setIsDirty] = useState(false);
+    const [dirtyState, setDirtyState] = useState<{[key: string]: boolean}>({});
 
     const today = new Date();
     const monthId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -60,33 +60,25 @@ function MembersList() {
     };
     
     useEffect(() => {
-        if (areRoommatesLoading || isPlanLoading || !firestore) {
+        if (areRoommatesLoading || isPlanLoading || areParticipantsLoading || !firestore) {
             setIsLoading(true);
             return;
         }
 
-        // We can build the initial list once roommates and plan are loaded.
-        // We will fill in participation data as it arrives.
         const costPerDay = (monthlyPlan?.monthlyExpense || 0) / 30;
 
         const combinedList = allRoommates?.map(roommate => {
-            // Find existing participation data from the local state first
-            const localParticipant = participants.find(p => p.id === roommate.id);
             const firestoreParticipant = participantsData?.find(p => p.id === roommate.id);
-
-            // Prioritize local state if it exists (for unsaved changes), otherwise use firestore data.
-            // Default to 0 if neither exists.
-            const days = localParticipant?.days ?? firestoreParticipant?.days ?? 0;
+            const days = firestoreParticipant?.days ?? 0;
             
             let lastUpdatedAtDate: Date | null = null;
-            const participation = firestoreParticipant; // Use firestore data for update info
-            if (participation?.lastUpdatedAt) {
-                 if (participation.lastUpdatedAt instanceof Timestamp) {
-                    lastUpdatedAtDate = participation.lastUpdatedAt.toDate();
-                } else if (typeof participation.lastUpdatedAt === 'string') {
-                    lastUpdatedAtDate = new Date(participation.lastUpdatedAt);
-                } else if (participation.lastUpdatedAt instanceof Date) {
-                    lastUpdatedAtDate = participation.lastUpdatedAt;
+            if (firestoreParticipant?.lastUpdatedAt) {
+                 if (firestoreParticipant.lastUpdatedAt instanceof Timestamp) {
+                    lastUpdatedAtDate = firestoreParticipant.lastUpdatedAt.toDate();
+                } else if (typeof firestoreParticipant.lastUpdatedAt === 'string') {
+                    lastUpdatedAtDate = new Date(firestoreParticipant.lastUpdatedAt);
+                } else if (firestoreParticipant.lastUpdatedAt instanceof Date) {
+                    lastUpdatedAtDate = firestoreParticipant.lastUpdatedAt;
                 }
             }
             
@@ -97,13 +89,13 @@ function MembersList() {
                 days: days,
                 cost: calculateCost(days, costPerDay),
                 lastUpdatedAt: lastUpdatedAtDate,
-                lastUpdatedBy: participation?.lastUpdatedBy || 'System',
+                lastUpdatedBy: firestoreParticipant?.lastUpdatedBy || 'System',
                 isAdmin: roommate.isAdmin || false,
             };
         }) || [];
 
         setParticipants(combinedList);
-        setIsLoading(areRoommatesLoading || isPlanLoading || areParticipantsLoading);
+        setIsLoading(false);
 
     }, [allRoommates, participantsData, monthlyPlan, areRoommatesLoading, areParticipantsLoading, isPlanLoading, firestore]);
 
@@ -116,7 +108,7 @@ function MembersList() {
                 ? { ...p, days: days, cost: calculateCost(days, costPerDay) }
                 : p
         ));
-        setIsDirty(true);
+        setDirtyState(prev => ({...prev, [participantId]: true}));
     };
 
     const handleSaveChanges = (participant: Participant) => {
@@ -130,7 +122,7 @@ function MembersList() {
             return;
         }
 
-        setIsSubmitting(true);
+        setIsSubmitting(prev => ({...prev, [participant.id]: true}));
 
         const participantDocRef = doc(firestore, `monthlyPlans/${monthId}/participations`, participant.id);
 
@@ -146,8 +138,8 @@ function MembersList() {
         setDocumentNonBlocking(participantDocRef, updatedParticipant, { merge: true });
 
         toast({ title: "Success", description: `${participant.name}'s plan updated.` });
-        setIsSubmitting(false);
-        setIsDirty(false);
+        setIsSubmitting(prev => ({...prev, [participant.id]: false}));
+        setDirtyState(prev => ({...prev, [participant.id]: false}));
     };
 
     const handleDeleteMember = (participantId: string) => {
@@ -193,7 +185,7 @@ function MembersList() {
     
     const canSelectDays = (participantId: string) => {
         if (!user) return false;
-        // User can select their own days.
+        // User can only select their own days. This applies to admins as well.
         return user.uid === participantId;
     }
 
@@ -269,10 +261,10 @@ function MembersList() {
                                             <Button
                                                 size="sm"
                                                 onClick={() => handleSaveChanges(p)}
-                                                disabled={isSubmitting || !isDirty}
+                                                disabled={isSubmitting[p.id] || !dirtyState[p.id]}
                                                 className="w-full sm:w-auto"
                                             >
-                                                Save
+                                                {isSubmitting[p.id] ? 'Saving...' : 'Save'}
                                             </Button>
                                         )}
                                         {(user as User)?.isAdmin && user?.uid !== p.id && (
