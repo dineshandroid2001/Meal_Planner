@@ -263,8 +263,7 @@ export default function ReimbursementClient() {
         if (user.uid === req.roommateId && req.status === 'pending') return true; // Users can delete their own pending requests.
         return false;
     }
-
-    return (
+        return (
         <div className="grid gap-4 lg:grid-cols-7">
             <Card className="lg:col-span-3">
                 <CardHeader>
@@ -324,7 +323,7 @@ export default function ReimbursementClient() {
                     </CardHeader>
                     <CardContent>
                         <div className="rounded-md border">
-                            <ScrollArea className="h-[300px]">
+                            <ScrollArea>
                                 <Table>
                                     <TableHeader>
                                         <TableRow>
@@ -503,7 +502,7 @@ export default function ReimbursementClient() {
                                                              <DialogClose asChild>
                                                                 <Button size="sm" onClick={() => handleStatusChange(req.id, 'approved')}>Approve</Button>
                                                              </DialogClose>
-                                                        </DialogFooter>
+                                                         </DialogFooter>
                                                     )}
                                                 </div>
                                             </DialogContent>
