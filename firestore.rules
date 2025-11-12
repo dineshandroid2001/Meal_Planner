@@ -47,11 +47,12 @@ service cloud.firestore {
       allow get: if request.auth != null;
       allow list: if request.auth != null;
       
-      // Allow owners to create/update their own profile.
-      // Allow admins to create/update any profile.
+      // Allow owners to update their own profile.
+      // Allow admins to update any profile (necessary for admin transfer).
       allow write: if isOwner() || userIsAdmin();
       
       // Allow owners to delete their own profile.
+      // Allow admins to delete other profiles.
       allow delete: if isOwner() || userIsAdmin();
     }
 
@@ -119,6 +120,9 @@ service cloud.firestore {
       allow list: if request.auth != null;
       allow create: if isRoommate(request.resource.data.roommateId);
       allow update: if (isRoommate(resource.data.roommateId) && resource.data.status == 'pending') || userIsAdmin();
+      
+      // A user can delete their own request only if it's pending.
+      // An admin can delete any request as long as it's not approved.
       allow delete: if (isRoommate(resource.data.roommateId) && resource.data.status == 'pending') || (userIsAdmin() && resource.data.status != 'approved');
     }
 
@@ -139,7 +143,7 @@ service cloud.firestore {
     
     match /app-config/admin {
         allow read: if true;
-        allow write: if get(/databases/$(database)/documents/app-config/admin) == null; // only allow write if doc doesn't exist
+        allow write: if get(/databases/$(database)/documents/app-config/admin) == null || get(/databases/$(database)/documents/roommates/$(request.auth.uid)).data.isAdmin == true;
     }
   }
 }
