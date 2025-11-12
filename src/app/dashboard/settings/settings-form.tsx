@@ -78,7 +78,7 @@ export default function SettingsForm() {
     return (
         <div className="grid gap-6 max-w-md">
             <div className="grid gap-3">
-                <Label htmlFor="monthly-expense" className="text-sm font-medium">Monthly Food Expense (₹)</Label>
+                <Label htmlFor="monthly-expense" className="text-sm font-medium">Monthly Food Expense (Rs)</Label>
                 <Input
                     id="monthly-expense"
                     type="number"

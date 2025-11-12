@@ -182,11 +182,6 @@ function MembersList() {
             </div>
         );
     }
-
-    const canEdit = (participantId: string) => {
-        if (!user) return false;
-        return (user as User).isAdmin;
-    }
     
     const canSelectDays = (participantId: string) => {
         if (!user) return false;
@@ -262,14 +257,16 @@ function MembersList() {
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex items-center justify-end gap-2">
-                                        <Button
-                                            size="sm"
-                                            onClick={() => handleSaveChanges(p)}
-                                            disabled={isSubmitting || !canEdit(p.id)}
-                                            className="w-full sm:w-auto"
-                                        >
-                                            Save
-                                        </Button>
+                                        {(user as User)?.isAdmin && (
+                                            <Button
+                                                size="sm"
+                                                onClick={() => handleSaveChanges(p)}
+                                                disabled={isSubmitting}
+                                                className="w-full sm:w-auto"
+                                            >
+                                                Save
+                                            </Button>
+                                        )}
                                         {(user as User)?.isAdmin && user?.uid !== p.id && (
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>

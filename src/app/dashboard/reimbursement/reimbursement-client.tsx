@@ -139,8 +139,6 @@ export default function ReimbursementClient() {
         toast({ title: 'Submitting...', description: 'Processing your reimbursement request.' });
         
         try {
-            const paymentScreenshotDataUri = paymentFile ? await fileToDataUri(paymentFile) : undefined;
-
             const newRequest: Partial<ReimbursementRequest> = {
                 roommateId: user.uid,
                 userName: (user as User).name || user.displayName || 'Unknown',
@@ -149,17 +147,36 @@ export default function ReimbursementClient() {
                 status: 'pending',
                 submittedAt: new Date(),
             };
+
+            const docRef = await addDocumentNonBlocking(collection(firestore, 'reimbursements'), newRequest);
             
+            if (paymentFile) {
+                const processImageInBackground = async () => {
+                    try {
+                        const paymentScreenshotDataUri = await fileToDataUri(paymentFile);
+                        const paymentRef = ref(storage, `reimbursements/${user.uid}/${Date.now()}_payment`);
+                        await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url');
+                        const paymentUrl = await getDownloadURL(paymentRef);
+                        
+                        // Update the document with the payment URL
+                        if (docRef) {
+                            await setDocumentNonBlocking(docRef, { paymentUrl }, { merge: true });
+                        }
+                    } catch (error) {
+                        console.error("Error processing image in background:", error);
+                        // Optionally update the document to indicate an error
+                        if (docRef) {
+                            await setDocumentNonBlocking(docRef, { 
+                                aiSummary: "Error processing image.",
+                                status: 'rejected'
+                            }, { merge: true });
+                        }
+                    }
+                };
 
-            if (paymentScreenshotDataUri && paymentFile) {
-                const paymentRef = ref(storage, `reimbursements/${user.uid}/${Date.now()}_payment`);
-                await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url');
-                const paymentUrl = await getDownloadURL(paymentRef);
-                newRequest.paymentUrl = paymentUrl;
+                // Run the background task without awaiting it
+                processImageInBackground();
             }
-
-
-            await addDocumentNonBlocking(collection(firestore, 'reimbursements'), newRequest);
             
             toast({ title: 'Success!', description: 'Your reimbursement request has been submitted.' });
             // Reset form
@@ -219,7 +236,7 @@ export default function ReimbursementClient() {
             <Card className="lg:col-span-3">
                 <CardHeader>
                     <CardTitle className="text-lg">Submit Reimbursement</CardTitle>
-                    <CardDescription>Upload your payment details for AI-powered analysis.</CardDescription>
+                    <CardDescription>Upload your payment details for submission.</CardDescription>
                 </CardHeader>
                 <form id="reimbursement-form" onSubmit={handleSubmit}>
                 <CardContent className="grid gap-4">
@@ -235,7 +252,7 @@ export default function ReimbursementClient() {
                         />
                     </div>
                     <div className="grid gap-3">
-                        <Label htmlFor="amount" className="text-sm font-medium">Total Amount (INR)</Label>
+                        <Label htmlFor="amount" className="text-sm font-medium">Total Amount (Rs)</Label>
                         <Input 
                             id="amount" 
                             type="number" 
@@ -472,5 +489,3 @@ export default function ReimbursementClient() {
         </div>
     );
 }
-
-    

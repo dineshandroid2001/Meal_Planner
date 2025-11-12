@@ -67,7 +67,7 @@ export default function DashboardSummary() {
             })
             .reduce((acc, p) => {
                 const cost = p.days * costPerDay;
-                console.log(`✓ Participant ${p.id}: ${p.days} days × ₹${costPerDay.toFixed(2)} = ₹${cost.toFixed(2)}`);
+                console.log(`✓ Participant ${p.id}: ${p.days} days × Rs ${costPerDay.toFixed(2)} = Rs ${cost.toFixed(2)}`);
                 return acc + cost;
             }, 0);
             
@@ -104,7 +104,7 @@ export default function DashboardSummary() {
                     <DollarSign className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">₹{fullMonthPerHeadAmount.toFixed(2)}</div>
+                    <div className="text-2xl font-bold">Rs {fullMonthPerHeadAmount.toFixed(2)}</div>
                     <p className="text-xs text-muted-foreground mt-1">Monthly expense set by admin.</p>
                 </CardContent>
             </Card>
@@ -114,7 +114,7 @@ export default function DashboardSummary() {
                     <Users className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">₹{totalCollectedAmount.toFixed(2)}</div>
+                    <div className="text-2xl font-bold">Rs {totalCollectedAmount.toFixed(2)}</div>
                     <p className="text-xs text-muted-foreground mt-1">Sum of all participants' costs.</p>
                 </CardContent>
             </Card>
@@ -124,7 +124,7 @@ export default function DashboardSummary() {
                     <CheckCircle className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">₹{totalApprovedReimbursements.toFixed(2)}</div>
+                    <div className="text-2xl font-bold">Rs {totalApprovedReimbursements.toFixed(2)}</div>
                     <p className="text-xs text-muted-foreground mt-1">Total of approved reimbursements.</p>
                 </CardContent>
             </Card>
@@ -134,7 +134,7 @@ export default function DashboardSummary() {
                     <TrendingUp className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">₹{balance.toFixed(2)}</div>
+                    <div className="text-2xl font-bold">Rs {balance.toFixed(2)}</div>
                     <p className="text-xs text-muted-foreground mt-1">Total Collected − Reimbursements.</p>
                 </CardContent>
             </Card>
@@ -144,7 +144,7 @@ export default function DashboardSummary() {
                     <CreditCard className="h-5 w-5 text-muted-foreground" />
                 </CardHeader>
                 <CardContent>
-                    <div className="text-2xl font-bold">₹{totalPendingReimbursements.toFixed(2)}</div>
+                    <div className="text-2xl font-bold">Rs {totalPendingReimbursements.toFixed(2)}</div>
                     <p className="text-xs text-muted-foreground mt-1">Requests pending for approval.</p>
                 </CardContent>
             </Card>

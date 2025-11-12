@@ -12,12 +12,10 @@ export function cn(...inputs: ClassValue[]) {
  * @returns Formatted currency string
  */
 export function formatINR(amount: number, showDecimals: boolean = true): string {
-  const formatter = new Intl.NumberFormat('en-IN', {
-    style: 'currency',
-    currency: 'INR',
+  const numberFormatter = new Intl.NumberFormat('en-IN', {
     minimumFractionDigits: showDecimals ? 2 : 0,
     maximumFractionDigits: showDecimals ? 2 : 0,
   });
   
-  return formatter.format(amount);
+  return `Rs ${numberFormatter.format(amount)}`;
 }
