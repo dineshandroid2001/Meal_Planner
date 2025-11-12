@@ -35,10 +35,8 @@ function MembersList() {
     const { user } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
-    const [isSubmitting, setIsSubmitting] = useState<{[key: string]: boolean}>({});
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [isLoading, setIsLoading] = useState(true);
-    const [dirtyState, setDirtyState] = useState<{[key: string]: boolean}>({});
 
     const today = new Date();
     const monthId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -100,46 +98,28 @@ function MembersList() {
     }, [allRoommates, participantsData, monthlyPlan, areRoommatesLoading, areParticipantsLoading, isPlanLoading, firestore]);
 
 
-    const handleDaysChange = (participantId: string, newDays: string) => {
-        const days = parseInt(newDays, 10);
-        const costPerDay = (monthlyPlan?.monthlyExpense || 0) / 30;
-        setParticipants(prev => prev.map(p =>
-            p.id === participantId
-                ? { ...p, days: days, cost: calculateCost(days, costPerDay) }
-                : p
-        ));
-        setDirtyState(prev => ({...prev, [participantId]: true}));
-    };
-
-    const handleSaveChanges = (participant: Participant) => {
+    const handleDaysChange = (participantId: string, newDaysStr: string) => {
+        const newDays = parseInt(newDaysStr, 10);
+        
         if (!user || !firestore) {
             toast({ title: "Not authenticated or DB not available", description: "You must be logged in.", variant: "destructive" });
             return;
         }
 
-        if (participant.id.startsWith('placeholder_')) {
-            toast({ title: "Cannot Save", description: "This user must sign up first before you can save their participation.", variant: "destructive" });
-            return;
-        }
+        const participantDocRef = doc(firestore, `monthlyPlans/${monthId}/participations`, participantId);
 
-        setIsSubmitting(prev => ({...prev, [participant.id]: true}));
-
-        const participantDocRef = doc(firestore, `monthlyPlans/${monthId}/participations`, participant.id);
-
-        const { name, photoURL, cost, ...participantToSave } = participant;
-
-        const updatedParticipant = {
-            ...participantToSave,
-            days: participant.days, // ensure days are saved
+        const updatedParticipantData = {
+            days: newDays,
             lastUpdatedAt: new Date(),
             lastUpdatedBy: user.name || user.displayName || user.email || 'Unknown User',
         };
 
-        setDocumentNonBlocking(participantDocRef, updatedParticipant, { merge: true });
+        setDocumentNonBlocking(participantDocRef, updatedParticipantData, { merge: true });
 
-        toast({ title: "Success", description: `${participant.name}'s plan updated.` });
-        setIsSubmitting(prev => ({...prev, [participant.id]: false}));
-        setDirtyState(prev => ({...prev, [participant.id]: false}));
+        toast({
+            title: "Plan Updated",
+            description: `Participation days set to ${newDays}.`,
+        });
     };
 
     const handleDeleteMember = (participantId: string) => {
@@ -183,11 +163,13 @@ function MembersList() {
         );
     }
     
-    const canSelectDays = (participantId: string) => {
+    const canEditDays = (participantId: string) => {
         if (!user) return false;
-        // User can only select their own days. This applies to admins as well.
+        // Admins can edit anyone's days.
+        if ((user as User)?.isAdmin) return true;
+        // Regular users can only edit their own.
         return user.uid === participantId;
-    }
+    };
 
     return (
         <>
@@ -221,7 +203,7 @@ function MembersList() {
                                     <Select
                                         value={String(p.days)}
                                         onValueChange={(value) => handleDaysChange(p.id, value)}
-                                        disabled={!canSelectDays(p.id)}
+                                        disabled={!canEditDays(p.id)}
                                     >
                                         <SelectTrigger className="w-full sm:w-[120px]">
                                             <SelectValue placeholder="Select days" />
@@ -257,16 +239,6 @@ function MembersList() {
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex items-center justify-end gap-2">
-                                        {(user as User)?.isAdmin && (
-                                            <Button
-                                                size="sm"
-                                                onClick={() => handleSaveChanges(p)}
-                                                disabled={isSubmitting[p.id] || !dirtyState[p.id]}
-                                                className="w-full sm:w-auto"
-                                            >
-                                                {isSubmitting[p.id] ? 'Saving...' : 'Save'}
-                                            </Button>
-                                        )}
                                         {(user as User)?.isAdmin && user?.uid !== p.id && (
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
@@ -303,3 +275,5 @@ function MembersList() {
 export default function MembersClient() {
     return <MembersList />;
 }
+
+    
