@@ -185,7 +185,6 @@ function MembersList() {
     
     const canSelectDays = (participantId: string) => {
         if (!user) return false;
-        if ((user as User).isAdmin) return true;
         return user.uid === participantId;
     }
 

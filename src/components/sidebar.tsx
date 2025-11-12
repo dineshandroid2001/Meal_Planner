@@ -13,7 +13,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 const navItems = [
     { href: '/dashboard', label: 'Dashboard', icon: Home },
     { href: '/dashboard/reimbursement', label: 'Reimbursement', icon: Receipt },
-    { href: '/dashboard/history', label: 'History', icon: History },
+    // { href: '/dashboard/history', label: 'History', icon: History },
     { href: '/dashboard/settings', label: 'Settings', icon: Settings, adminOnly: true },
 ];
 
