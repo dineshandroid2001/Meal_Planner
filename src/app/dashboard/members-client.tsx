@@ -220,9 +220,8 @@ function MembersList() {
                                     <Select
                                         value={String(p.days)}
                                         onValueChange={(value) => handleDaysChange(p.id, value)}
-                                        disabled={!canEdit(p.id)}
                                     >
-                                        <SelectTrigger className="w-[120px]">
+                                        <SelectTrigger className="w-full sm:w-[120px]">
                                             <SelectValue placeholder="Select days" />
                                         </SelectTrigger>
                                         <SelectContent>
@@ -267,7 +266,7 @@ function MembersList() {
                                         {(user as User)?.isAdmin && user?.uid !== p.id && (
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
-                                                    <Button variant="destructive" size="icon">
+                                                    <Button variant="destructive" size="icon" className="h-9 w-9">
                                                         <Trash2 className="h-4 w-4" />
                                                         <span className="sr-only">Delete Member</span>
                                                     </Button>
