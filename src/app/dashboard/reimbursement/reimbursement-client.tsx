@@ -339,19 +339,25 @@ export default function ReimbursementClient() {
                                         </TableRow>
                                     </TableHeader>
                                     <TableBody>
-                                {isLoading ? (
-                                    <TableRow>
-                                        <TableCell colSpan={3} className="h-24 text-center">
-                                            <Skeleton className="h-8 w-full" />
-                                        </TableCell>
-                                    </TableRow>
-                                ) : reimbursementSummary.map(summary => (
-                                    <TableRow key={summary.roommateId}>
-                                        <TableCell className="font-medium">{summary.roommateName}</TableCell>
-                                        <TableCell className="text-right">{formatINR(summary.pending)}</TableCell>
-                                        <TableCell className="text-right">{formatINR(summary.approved)}</TableCell>
-                                    </TableRow>
-                                ))}
+                                        {isLoading ? (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="h-24 text-center">
+                                                    <Skeleton className="h-8 w-full" />
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : reimbursementSummary.length === 0 ? (
+                                            <TableRow>
+                                                <TableCell colSpan={3} className="h-24 text-center text-muted-foreground">
+                                                    No reimbursement requests found.
+                                                </TableCell>
+                                            </TableRow>
+                                        ) : reimbursementSummary.map(summary => (
+                                            <TableRow key={summary.roommateId}>
+                                                <TableCell className="font-medium">{summary.roommateName}</TableCell>
+                                                <TableCell className="text-right">{formatINR(summary.pending)}</TableCell>
+                                                <TableCell className="text-right">{formatINR(summary.approved)}</TableCell>
+                                            </TableRow>
+                                        ))}
                                     </TableBody>
                                 </Table>
                             </ScrollArea>
@@ -571,3 +577,5 @@ export default function ReimbursementClient() {
         </div>
     );
 }
+
+    
