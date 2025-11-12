@@ -13,7 +13,6 @@
  * ];
  */
 export const allowedEmails: string[] = [
-    // Add your allowed email addresses here.
     'dinesh0392001@gmail.com',
     'dhanabalmorshal@gmail.com', 
     'kumaresanvijay2002@gmail.com', 
