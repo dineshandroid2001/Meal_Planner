@@ -187,6 +187,12 @@ function MembersList() {
         if (!user) return false;
         return (user as User).isAdmin;
     }
+    
+    const canSelectDays = (participantId: string) => {
+        if (!user) return false;
+        if ((user as User).isAdmin) return true;
+        return user.uid === participantId;
+    }
 
     return (
         <>
@@ -220,6 +226,7 @@ function MembersList() {
                                     <Select
                                         value={String(p.days)}
                                         onValueChange={(value) => handleDaysChange(p.id, value)}
+                                        disabled={!canSelectDays(p.id)}
                                     >
                                         <SelectTrigger className="w-full sm:w-[120px]">
                                             <SelectValue placeholder="Select days" />
