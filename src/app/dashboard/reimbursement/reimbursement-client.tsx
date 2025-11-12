@@ -465,14 +465,15 @@ export default function ReimbursementClient() {
                                                         <p className="text-sm text-muted-foreground mt-1">{formatINR(req.amount)}</p>
                                                     </div>
                                                     {req.paymentUrl && (
-                                                        <div className="col-span-2">
+                                                        <div>
                                                             <Label className="font-semibold">Payment Screenshot</Label>
-                                                            <div className="mt-2 relative h-96">
+                                                            <div className="mt-2 relative">
                                                                 <Image 
                                                                     src={req.paymentUrl} 
                                                                     alt="Payment" 
-                                                                    layout="fill"
-                                                                    className="rounded-md object-contain" 
+                                                                    width={300} 
+                                                                    height={400} 
+                                                                    className="rounded-md object-contain mx-auto" 
                                                                 />
                                                             </div>
                                                         </div>
@@ -559,7 +560,4 @@ export default function ReimbursementClient() {
         </div>
     );
 }
-
-    
-
     
