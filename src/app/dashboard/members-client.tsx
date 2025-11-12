@@ -29,6 +29,7 @@ import {
 } from "@/components/ui/alert-dialog";
 
 const dayOptions = [0, 10, 15, 20, 30];
+const MAINTENANCE_COST = 100;
 
 function MembersList() {
     const { user } = useUser();
@@ -50,6 +51,13 @@ function MembersList() {
     const roommatesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, 'roommates') : null, [firestore]);
     const { data: allRoommates, isLoading: areRoommatesLoading } = useCollection<User & {id: string}>(roommatesCollectionRef);
 
+    const calculateCost = (days: number, costPerDay: number) => {
+        if (days === 0) {
+            return MAINTENANCE_COST;
+        }
+        return days * costPerDay;
+    };
+    
     useEffect(() => {
         if (areRoommatesLoading || areParticipantsLoading || isPlanLoading || !firestore) {
             setIsLoading(true);
@@ -63,7 +71,7 @@ function MembersList() {
         const combinedList = allRoommates?.map(roommate => {
             const participation = currentParticipantsData.find(p => p.id === roommate.id);
             
-            const days = participation?.days || 0;
+            const days = participation?.days ?? 0;
             
             let lastUpdatedAtDate: Date | null = null;
             if (participation?.lastUpdatedAt) {
@@ -81,7 +89,7 @@ function MembersList() {
                 name: roommate.name || roommate.displayName || 'Unknown',
                 photoURL: roommate.photoURL || null,
                 days: days,
-                cost: days * costPerDay,
+                cost: calculateCost(days, costPerDay),
                 lastUpdatedAt: lastUpdatedAtDate,
                 lastUpdatedBy: participation?.lastUpdatedBy || 'System',
                 isAdmin: roommate.isAdmin || false,
@@ -99,7 +107,7 @@ function MembersList() {
         const costPerDay = (monthlyPlan?.monthlyExpense || 0) / 30;
         setParticipants(prev => prev.map(p =>
             p.id === participantId
-                ? { ...p, days: days, cost: days * costPerDay }
+                ? { ...p, days: days, cost: calculateCost(days, costPerDay) }
                 : p
         ));
     };
@@ -177,7 +185,7 @@ function MembersList() {
 
     const canEdit = (participantId: string) => {
         if (!user) return false;
-        return (user as User).isAdmin || user.uid === participantId;
+        return (user as User).isAdmin;
     }
 
     return (
