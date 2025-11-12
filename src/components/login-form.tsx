@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff } from 'lucide-react';
 import GoogleSignInButton from '@/components/google-signin-button';
+import { isEmailAllowed } from '@/lib/allowed-emails';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -33,6 +34,15 @@ export default function LoginForm() {
       toast({
         title: 'Missing Fields',
         description: 'Please enter both email and password.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (!isEmailAllowed(email)) {
+      toast({
+        title: 'Access Denied',
+        description: 'This email address is not authorized to access this application.',
         variant: 'destructive',
       });
       return;
