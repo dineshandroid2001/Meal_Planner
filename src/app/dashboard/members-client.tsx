@@ -60,21 +60,26 @@ function MembersList() {
     };
     
     useEffect(() => {
-        if (areRoommatesLoading || areParticipantsLoading || isPlanLoading || !firestore) {
+        if (areRoommatesLoading || isPlanLoading || !firestore) {
             setIsLoading(true);
             return;
         }
 
+        // We can build the initial list once roommates and plan are loaded.
+        // We will fill in participation data as it arrives.
         const costPerDay = (monthlyPlan?.monthlyExpense || 0) / 30;
 
-        const currentParticipantsData = participantsData || [];
-
         const combinedList = allRoommates?.map(roommate => {
-            const participation = currentParticipantsData.find(p => p.id === roommate.id);
-            
-            const days = participation?.days ?? 0;
+            // Find existing participation data from the local state first
+            const localParticipant = participants.find(p => p.id === roommate.id);
+            const firestoreParticipant = participantsData?.find(p => p.id === roommate.id);
+
+            // Prioritize local state if it exists (for unsaved changes), otherwise use firestore data.
+            // Default to 0 if neither exists.
+            const days = localParticipant?.days ?? firestoreParticipant?.days ?? 0;
             
             let lastUpdatedAtDate: Date | null = null;
+            const participation = firestoreParticipant; // Use firestore data for update info
             if (participation?.lastUpdatedAt) {
                  if (participation.lastUpdatedAt instanceof Timestamp) {
                     lastUpdatedAtDate = participation.lastUpdatedAt.toDate();
@@ -98,7 +103,7 @@ function MembersList() {
         }) || [];
 
         setParticipants(combinedList);
-        setIsLoading(false);
+        setIsLoading(areRoommatesLoading || isPlanLoading || areParticipantsLoading);
 
     }, [allRoommates, participantsData, monthlyPlan, areRoommatesLoading, areParticipantsLoading, isPlanLoading, firestore]);
 
@@ -188,6 +193,7 @@ function MembersList() {
     
     const canSelectDays = (participantId: string) => {
         if (!user) return false;
+        // User can select their own days.
         return user.uid === participantId;
     }
 
