@@ -23,9 +23,6 @@ export default function GoogleSignInButton({ className, disabled }: GoogleSignIn
     setIsLoading(true);
     
     try {
-      if (!auth || !firestore) {
-        throw new Error('Firebase services are not available.');
-      }
       await signInWithGoogle(auth, firestore);
       
       toast({
@@ -37,7 +34,7 @@ export default function GoogleSignInButton({ className, disabled }: GoogleSignIn
     } catch (error: any) {
       console.error('Google sign-in error:', error);
       
-      let errorMessage = error.message || 'Failed to sign in with Google.';
+      let errorMessage = 'Failed to sign in with Google.';
       
       if (error.code === 'auth/popup-closed-by-user') {
         errorMessage = 'Sign-in was cancelled.';
