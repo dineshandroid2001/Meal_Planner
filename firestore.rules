@@ -114,11 +114,11 @@ service cloud.firestore {
         return request.auth != null && get(/databases/$(database)/documents/roommates/$(request.auth.uid)).data.isAdmin == true;
       }
 
-      allow get: if isRoommate(resource.data.roommateId);
+      allow get: if isRoommate(resource.data.roommateId) || userIsAdmin();
       allow list: if request.auth != null;
       allow create: if isRoommate(request.resource.data.roommateId);
       allow update: if isRoommate(resource.data.roommateId) || userIsAdmin();
-      allow delete: if userIsAdmin();
+      allow delete: if isRoommate(resource.data.roommateId) || userIsAdmin();
     }
 
     /**

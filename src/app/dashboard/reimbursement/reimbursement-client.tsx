@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +31,7 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Skeleton } from '@/components/ui/skeleton';
-import { CheckCircle, Trash2 } from 'lucide-react';
+import { CheckCircle, Trash2, Edit } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +55,10 @@ export default function ReimbursementClient() {
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
     const [paymentFile, setPaymentFile] = useState<File | null>(null);
+
+    const [editingRequest, setEditingRequest] = useState<(ReimbursementRequest & { id: string }) | null>(null);
+    const [editDescription, setEditDescription] = useState('');
+    const [editAmount, setEditAmount] = useState('');
     
     // Filter state for history
     const [filters, setFilters] = useState<FilterState>(createDefaultFilters());
@@ -73,6 +77,13 @@ export default function ReimbursementClient() {
         if (!allRoommates) return new Map();
         return new Map(allRoommates.map(r => [r.id, r.name || r.displayName || 'Unknown']));
     }, [allRoommates]);
+
+    useEffect(() => {
+        if (editingRequest) {
+            setEditDescription(editingRequest.description);
+            setEditAmount(String(editingRequest.amount));
+        }
+    }, [editingRequest]);
 
     // Prepare users data for filter component
     const usersForFilter = useMemo(() => {
@@ -192,12 +203,26 @@ export default function ReimbursementClient() {
             setIsSubmitting(false);
         }
     };
+
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!editingRequest || !firestore) return;
+
+        setIsSubmitting(true);
+        const docRef = doc(firestore, 'reimbursements', editingRequest.id);
+        const updatedData = {
+            description: editDescription,
+            amount: parseFloat(editAmount),
+        };
+        await setDocumentNonBlocking(docRef, updatedData, { merge: true });
+
+        setIsSubmitting(false);
+        setEditingRequest(null);
+        toast({ title: 'Success', description: 'Reimbursement request updated.' });
+    };
     
     const handleDelete = (reimbursementId: string) => {
-        if (!firestore || !(user as User)?.isAdmin) {
-            toast({ title: "Permission Denied", description: "You are not authorized to delete requests.", variant: "destructive" });
-            return;
-        }
+        if (!firestore) return;
 
         const docRef = doc(firestore, 'reimbursements', reimbursementId);
         deleteDocumentNonBlocking(docRef);
@@ -456,7 +481,43 @@ export default function ReimbursementClient() {
                                                 </div>
                                             </DialogContent>
                                         </Dialog>
-                                         {(user as User)?.isAdmin && (
+                                        {user?.uid === req.roommateId && req.status === 'pending' && (
+                                            <Dialog open={editingRequest?.id === req.id} onOpenChange={(isOpen) => !isOpen && setEditingRequest(null)}>
+                                                <DialogTrigger asChild>
+                                                    <Button variant="outline" size="icon" onClick={() => setEditingRequest(req)}>
+                                                        <Edit className="h-4 w-4" />
+                                                        <span className="sr-only">Edit</span>
+                                                    </Button>
+                                                </DialogTrigger>
+                                                <DialogContent>
+                                                    <DialogHeader>
+                                                        <DialogTitle>Edit Reimbursement</DialogTitle>
+                                                        <DialogDescription>
+                                                            Update the details of your reimbursement request.
+                                                        </DialogDescription>
+                                                    </DialogHeader>
+                                                    <form onSubmit={handleEditSubmit}>
+                                                        <div className="grid gap-4 py-4">
+                                                            <div className="grid gap-2">
+                                                                <Label htmlFor="edit-description">Description</Label>
+                                                                <Textarea id="edit-description" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+                                                            </div>
+                                                            <div className="grid gap-2">
+                                                                <Label htmlFor="edit-amount">Amount</Label>
+                                                                <Input id="edit-amount" type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
+                                                            </div>
+                                                        </div>
+                                                        <DialogFooter>
+                                                            <DialogClose asChild>
+                                                                <Button type="button" variant="secondary">Cancel</Button>
+                                                            </DialogClose>
+                                                            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Save Changes'}</Button>
+                                                        </DialogFooter>
+                                                    </form>
+                                                </DialogContent>
+                                            </Dialog>
+                                        )}
+                                        {user?.uid === req.roommateId && (
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
                                                     <Button variant="destructive" size="icon">
