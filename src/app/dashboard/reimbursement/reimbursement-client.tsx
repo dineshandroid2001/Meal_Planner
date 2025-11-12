@@ -460,29 +460,27 @@ export default function ReimbursementClient() {
                                                 </DialogDescription>
                                                 </DialogHeader>
                                                 <div className="grid gap-4 py-4">
-                                                    <div className="grid grid-cols-2 gap-4">
-                                                        <div>
-                                                            <Label className="font-semibold">Description</Label>
-                                                            <p className="text-sm text-muted-foreground mt-1">{req.description}</p>
-                                                        </div>
-                                                        <div>
-                                                            <Label className="font-semibold">Amount</Label>
-                                                            <p className="text-sm text-muted-foreground mt-1">{formatINR(req.amount)}</p>
-                                                        </div>
-                                                        {req.paymentUrl && (
-                                                            <div className="col-span-2">
-                                                                <Label className="font-semibold">Payment Screenshot</Label>
-                                                                <div className="mt-2 relative h-96">
-                                                                    <Image 
-                                                                        src={req.paymentUrl} 
-                                                                        alt="Payment" 
-                                                                        layout="fill"
-                                                                        className="rounded-md object-contain" 
-                                                                    />
-                                                                </div>
-                                                            </div>
-                                                        )}
+                                                    <div>
+                                                        <Label className="font-semibold">Description</Label>
+                                                        <p className="text-sm text-muted-foreground mt-1">{req.description}</p>
                                                     </div>
+                                                    <div>
+                                                        <Label className="font-semibold">Amount</Label>
+                                                        <p className="text-sm text-muted-foreground mt-1">{formatINR(req.amount)}</p>
+                                                    </div>
+                                                    {req.paymentUrl && (
+                                                        <div className="col-span-2">
+                                                            <Label className="font-semibold">Payment Screenshot</Label>
+                                                            <div className="mt-2 relative h-96">
+                                                                <Image 
+                                                                    src={req.paymentUrl} 
+                                                                    alt="Payment" 
+                                                                    layout="fill"
+                                                                    className="rounded-md object-contain" 
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    )}
                                                     {(user as User)?.isAdmin && req.status === 'pending' && (
                                                          <DialogFooter>
                                                              <DialogClose asChild>
@@ -532,7 +530,7 @@ export default function ReimbursementClient() {
                                                 </DialogContent>
                                             </Dialog>
                                         )}
-                                        {user?.uid === req.roommateId && (
+                                        {((user as User)?.isAdmin || (user?.uid === req.roommateId && req.status === 'pending')) && (
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
                                                     <Button variant="destructive" size="icon">
@@ -566,5 +564,7 @@ export default function ReimbursementClient() {
     );
 }
 
+
+    
 
     
