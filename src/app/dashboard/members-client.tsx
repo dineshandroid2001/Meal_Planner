@@ -118,7 +118,7 @@ function MembersList() {
 
         toast({
             title: "Plan Updated",
-            description: `Participation days set to ${newDays}.`,
+            description: `Your participation has been set to ${newDays} days.`,
         });
     };
 
@@ -165,9 +165,7 @@ function MembersList() {
     
     const canEditDays = (participantId: string) => {
         if (!user) return false;
-        // Admins can edit anyone's days.
-        if ((user as User)?.isAdmin) return true;
-        // Regular users can only edit their own.
+        // Any user (admin or not) can only edit their own days.
         return user.uid === participantId;
     };
 
