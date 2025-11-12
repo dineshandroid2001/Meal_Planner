@@ -150,6 +150,15 @@ export default function ReimbursementClient() {
         toast({ title: 'Submitting...', description: 'Processing your reimbursement request.' });
         
         try {
+            let paymentUrl: string | undefined = undefined;
+
+            if (paymentFile) {
+                const paymentScreenshotDataUri = await fileToDataUri(paymentFile);
+                const paymentRef = ref(storage, `reimbursements/${user.uid}/${Date.now()}_payment`);
+                await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url');
+                paymentUrl = await getDownloadURL(paymentRef);
+            }
+            
             const newRequest: Partial<ReimbursementRequest> = {
                 roommateId: user.uid,
                 userName: (user as User).name || user.displayName || 'Unknown',
@@ -157,37 +166,10 @@ export default function ReimbursementClient() {
                 description,
                 status: 'pending',
                 submittedAt: new Date(),
+                paymentUrl: paymentUrl,
             };
 
-            const docRef = await addDocumentNonBlocking(collection(firestore, 'reimbursements'), newRequest);
-            
-            if (paymentFile) {
-                const processImageInBackground = async () => {
-                    try {
-                        const paymentScreenshotDataUri = await fileToDataUri(paymentFile);
-                        const paymentRef = ref(storage, `reimbursements/${user.uid}/${Date.now()}_payment`);
-                        await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url');
-                        const paymentUrl = await getDownloadURL(paymentRef);
-                        
-                        // Update the document with the payment URL
-                        if (docRef) {
-                            await setDocumentNonBlocking(docRef, { paymentUrl }, { merge: true });
-                        }
-                    } catch (error) {
-                        console.error("Error processing image in background:", error);
-                        // Optionally update the document to indicate an error
-                        if (docRef) {
-                            await setDocumentNonBlocking(docRef, { 
-                                aiSummary: "Error processing image.",
-                                status: 'rejected'
-                            }, { merge: true });
-                        }
-                    }
-                };
-
-                // Run the background task without awaiting it
-                processImageInBackground();
-            }
+            await addDocumentNonBlocking(collection(firestore, 'reimbursements'), newRequest);
             
             toast({ title: 'Success!', description: 'Your reimbursement request has been submitted.' });
             // Reset form
@@ -258,12 +240,13 @@ export default function ReimbursementClient() {
     
     const canDelete = (req: ReimbursementRequest) => {
         if (!user) return false;
-        if (req.status === 'approved') return false; // Nobody can delete an approved request.
-        if ((user as User)?.isAdmin) return true; // Admins can delete pending/rejected requests.
-        if (user.uid === req.roommateId && req.status === 'pending') return true; // Users can delete their own pending requests.
+        if (req.status === 'approved') return false;
+        if ((user as User)?.isAdmin) return true;
+        if (user.uid === req.roommateId && req.status === 'pending') return true;
         return false;
     }
-        return (
+    
+    return (
         <div className="grid gap-4 lg:grid-cols-7">
             <Card className="lg:col-span-3">
                 <CardHeader>
@@ -576,5 +559,7 @@ export default function ReimbursementClient() {
         </div>
     );
 }
+
+    
 
     
