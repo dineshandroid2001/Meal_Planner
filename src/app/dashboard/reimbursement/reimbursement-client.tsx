@@ -461,10 +461,25 @@ export default function ReimbursementClient() {
                                                 </DialogHeader>
                                                 <div className="grid gap-4 py-4">
                                                     <div className="grid grid-cols-2 gap-4">
+                                                        <div>
+                                                            <Label className="font-semibold">Description</Label>
+                                                            <p className="text-sm text-muted-foreground mt-1">{req.description}</p>
+                                                        </div>
+                                                        <div>
+                                                            <Label className="font-semibold">Amount</Label>
+                                                            <p className="text-sm text-muted-foreground mt-1">{formatINR(req.amount)}</p>
+                                                        </div>
                                                         {req.paymentUrl && (
-                                                            <div>
-                                                                <Label>Payment</Label>
-                                                                <Image src={req.paymentUrl} alt="Payment" width={250} height={400} className="rounded-md object-cover" />
+                                                            <div className="col-span-2">
+                                                                <Label className="font-semibold">Payment Screenshot</Label>
+                                                                <div className="mt-2 relative h-96">
+                                                                    <Image 
+                                                                        src={req.paymentUrl} 
+                                                                        alt="Payment" 
+                                                                        layout="fill"
+                                                                        className="rounded-md object-contain" 
+                                                                    />
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </div>
@@ -550,3 +565,6 @@ export default function ReimbursementClient() {
         </div>
     );
 }
+
+
+    
