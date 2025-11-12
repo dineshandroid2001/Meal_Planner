@@ -255,6 +255,14 @@ export default function ReimbursementClient() {
     }
 
     const isLoading = isLoadingReimbursements || areRoommatesLoading;
+    
+    const canDelete = (req: ReimbursementRequest) => {
+        if (!user) return false;
+        if (req.status === 'approved') return false; // Nobody can delete an approved request.
+        if ((user as User)?.isAdmin) return true; // Admins can delete pending/rejected requests.
+        if (user.uid === req.roommateId && req.status === 'pending') return true; // Users can delete their own pending requests.
+        return false;
+    }
 
     return (
         <div className="grid gap-4 lg:grid-cols-7">
@@ -530,7 +538,7 @@ export default function ReimbursementClient() {
                                                 </DialogContent>
                                             </Dialog>
                                         )}
-                                        {((user as User)?.isAdmin || (user?.uid === req.roommateId && req.status === 'pending')) && (
+                                        {canDelete(req) && (
                                             <AlertDialog>
                                                 <AlertDialogTrigger asChild>
                                                     <Button variant="destructive" size="icon">
@@ -563,8 +571,3 @@ export default function ReimbursementClient() {
         </div>
     );
 }
-
-
-    
-
-    
