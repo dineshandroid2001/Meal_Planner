@@ -81,9 +81,15 @@ export default function LoginForm() {
       router.push('/dashboard');
     } catch (error: any) {
       console.error(`Error during ${action}:`, error);
+
+      let description = error.message;
+      if (error.code === 'auth/invalid-credential') {
+        description = 'Invalid email or password. Please try again.';
+      }
+      
       toast({
         title: 'Authentication Error',
-        description: error.message,
+        description: description,
         variant: 'destructive',
       });
     } finally {
