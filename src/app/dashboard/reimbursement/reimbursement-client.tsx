@@ -48,7 +48,7 @@ import {
 export default function ReimbursementClient() {
     const { user } = useUser();
     const firestore = useFirestore();
-    const storage = getStorage();
+    const storage = useMemo(() => firestore ? getStorage() : null, [firestore]);
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     
@@ -141,24 +141,26 @@ export default function ReimbursementClient() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user || !description || !amount || !firestore) {
-            toast({ title: 'Missing fields', description: 'Please fill out description and amount.', variant: 'destructive' });
+        if (!user || !description || !amount || !firestore || !storage) {
+            toast({ title: 'Missing fields or services unavailable', description: 'Please fill out all fields.', variant: 'destructive' });
             return;
         }
-
+    
         setIsSubmitting(true);
-        toast({ title: 'Submitting...', description: 'Processing your reimbursement request.' });
-        
+        let paymentUrl: string | undefined = undefined;
+    
         try {
-            let paymentUrl: string | undefined = undefined;
-
             if (paymentFile) {
+                toast({ title: 'Uploading...', description: 'Your receipt is being uploaded.' });
                 const paymentScreenshotDataUri = await fileToDataUri(paymentFile);
-                const paymentRef = ref(storage, `reimbursements/${user.uid}/${Date.now()}_payment`);
+                const paymentRef = ref(storage, `reimbursements/${user.uid}/${Date.now()}_${paymentFile.name}`);
                 await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url');
                 paymentUrl = await getDownloadURL(paymentRef);
+                toast({ title: 'Upload Complete', description: 'Your receipt has been uploaded successfully.' });
             }
-            
+    
+            toast({ title: 'Submitting...', description: 'Saving your reimbursement request.' });
+    
             const newRequest: Partial<ReimbursementRequest> = {
                 roommateId: user.uid,
                 userName: (user as User).name || user.displayName || 'Unknown',
@@ -168,23 +170,28 @@ export default function ReimbursementClient() {
                 submittedAt: new Date(),
                 paymentUrl: paymentUrl,
             };
-
+    
             await addDocumentNonBlocking(collection(firestore, 'reimbursements'), newRequest);
             
             toast({ title: 'Success!', description: 'Your reimbursement request has been submitted.' });
+            
             // Reset form
             setDescription('');
             setAmount('');
             setPaymentFile(null);
-            (document.getElementById('reimbursement-form') as HTMLFormElement)?.reset();
-
+            const form = document.getElementById('reimbursement-form') as HTMLFormElement;
+            if (form) {
+                form.reset();
+            }
+    
         } catch (error) {
-            console.error(error);
+            console.error("Submission error:", error);
             toast({ title: 'Error', description: 'Failed to submit request. Please try again.', variant: 'destructive' });
         } finally {
             setIsSubmitting(false);
         }
     };
+    
 
     const handleEditSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -240,10 +247,18 @@ export default function ReimbursementClient() {
     
     const canDelete = (req: ReimbursementRequest) => {
         if (!user) return false;
-        if (req.status === 'approved') return false;
-        if ((user as User)?.isAdmin) return true;
-        if (user.uid === req.roommateId && req.status === 'pending') return true;
+        if ((user as User)?.isAdmin) {
+          return req.status !== 'approved';
+        }
+        if (user.uid === req.roommateId) {
+          return req.status === 'pending';
+        }
         return false;
+      };
+
+    const canEdit = (req: ReimbursementRequest) => {
+        if (!user) return false;
+        return user.uid === req.roommateId && req.status === 'pending';
     }
     
     return (
@@ -323,7 +338,7 @@ export default function ReimbursementClient() {
                                     <TableBody>
                                         {isLoading ? (
                                             <TableRow>
-                                                <TableCell colSpan={3} className="h-24 text-center">
+                                                <TableCell colSpan={3}>
                                                     <Skeleton className="h-8 w-full" />
                                                 </TableCell>
                                             </TableRow>
@@ -491,7 +506,7 @@ export default function ReimbursementClient() {
                                                 </div>
                                             </DialogContent>
                                         </Dialog>
-                                        {user?.uid === req.roommateId && req.status === 'pending' && (
+                                        {canEdit(req) && (
                                             <Dialog open={editingRequest?.id === req.id} onOpenChange={(isOpen) => !isOpen && setEditingRequest(null)}>
                                                 <DialogTrigger asChild>
                                                     <Button variant="outline" size="icon" onClick={() => setEditingRequest(req)}>
@@ -560,4 +575,6 @@ export default function ReimbursementClient() {
         </div>
     );
 }
+    
+
     
