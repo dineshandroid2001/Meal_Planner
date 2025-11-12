@@ -38,6 +38,7 @@ function MembersList() {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const [isDirty, setIsDirty] = useState(false);
 
     const today = new Date();
     const monthId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -110,6 +111,7 @@ function MembersList() {
                 ? { ...p, days: days, cost: calculateCost(days, costPerDay) }
                 : p
         ));
+        setIsDirty(true);
     };
 
     const handleSaveChanges = (participant: Participant) => {
@@ -140,6 +142,7 @@ function MembersList() {
 
         toast({ title: "Success", description: `${participant.name}'s plan updated.` });
         setIsSubmitting(false);
+        setIsDirty(false);
     };
 
     const handleDeleteMember = (participantId: string) => {
@@ -260,7 +263,7 @@ function MembersList() {
                                             <Button
                                                 size="sm"
                                                 onClick={() => handleSaveChanges(p)}
-                                                disabled={isSubmitting}
+                                                disabled={isSubmitting || !isDirty}
                                                 className="w-full sm:w-auto"
                                             >
                                                 Save
