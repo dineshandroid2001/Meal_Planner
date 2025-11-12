@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +31,7 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Skeleton } from '@/components/ui/skeleton';
-import { CheckCircle, Trash2, Edit } from 'lucide-react';
+import { CheckCircle, Trash2, Edit, XIcon } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -48,13 +48,14 @@ import {
 export default function ReimbursementClient() {
     const { user } = useUser();
     const firestore = useFirestore();
-    const storage = getStorage();
+    const storage = useMemo(() => firestore ? getStorage() : null, [firestore]);
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
     
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
     const [paymentFile, setPaymentFile] = useState<File | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [editingRequest, setEditingRequest] = useState<(ReimbursementRequest & { id: string }) | null>(null);
     const [editDescription, setEditDescription] = useState('');
@@ -137,19 +138,42 @@ export default function ReimbursementClient() {
           reader.onerror = reject;
           reader.readAsDataURL(file);
         });
-      };
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] || null;
+        setPaymentFile(file);
+    };
+
+    const clearFileSelection = () => {
+        setPaymentFile(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user || !description || !amount || !firestore) {
-            toast({ title: 'Missing fields', description: 'Please fill out description and amount.', variant: 'destructive' });
+        if (!user || !description || !amount || !firestore || !storage) {
+            toast({ title: 'Missing fields or services unavailable', description: 'Please fill out all fields.', variant: 'destructive' });
             return;
         }
 
         setIsSubmitting(true);
-        toast({ title: 'Submitting...', description: 'Processing your reimbursement request.' });
-        
+        let paymentUrl: string | undefined = undefined;
+
         try {
+            if (paymentFile) {
+                toast({ title: 'Uploading...', description: 'Your receipt is being uploaded.' });
+                const paymentScreenshotDataUri = await fileToDataUri(paymentFile);
+                const paymentRef = ref(storage, `reimbursements/${user.uid}/${Date.now()}_${paymentFile.name}`);
+                await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url');
+                paymentUrl = await getDownloadURL(paymentRef);
+                toast({ title: 'Upload Complete', description: 'Your receipt has been uploaded successfully.' });
+            }
+
+            toast({ title: 'Submitting...', description: 'Saving your reimbursement request.' });
+
             const newRequest: Partial<ReimbursementRequest> = {
                 roommateId: user.uid,
                 userName: (user as User).name || user.displayName || 'Unknown',
@@ -157,52 +181,26 @@ export default function ReimbursementClient() {
                 description,
                 status: 'pending',
                 submittedAt: new Date(),
+                paymentUrl: paymentUrl,
             };
 
-            const docRef = await addDocumentNonBlocking(collection(firestore, 'reimbursements'), newRequest);
-            
-            if (paymentFile) {
-                const processImageInBackground = async () => {
-                    try {
-                        const paymentScreenshotDataUri = await fileToDataUri(paymentFile);
-                        const paymentRef = ref(storage, `reimbursements/${user.uid}/${Date.now()}_payment`);
-                        await uploadString(paymentRef, paymentScreenshotDataUri, 'data_url');
-                        const paymentUrl = await getDownloadURL(paymentRef);
-                        
-                        // Update the document with the payment URL
-                        if (docRef) {
-                            await setDocumentNonBlocking(docRef, { paymentUrl }, { merge: true });
-                        }
-                    } catch (error) {
-                        console.error("Error processing image in background:", error);
-                        // Optionally update the document to indicate an error
-                        if (docRef) {
-                            await setDocumentNonBlocking(docRef, { 
-                                aiSummary: "Error processing image.",
-                                status: 'rejected'
-                            }, { merge: true });
-                        }
-                    }
-                };
-
-                // Run the background task without awaiting it
-                processImageInBackground();
-            }
+            await addDocumentNonBlocking(collection(firestore, 'reimbursements'), newRequest);
             
             toast({ title: 'Success!', description: 'Your reimbursement request has been submitted.' });
+            
             // Reset form
             setDescription('');
             setAmount('');
-            setPaymentFile(null);
-            (document.getElementById('reimbursement-form') as HTMLFormElement)?.reset();
+            clearFileSelection();
 
         } catch (error) {
-            console.error(error);
+            console.error("Submission error:", error);
             toast({ title: 'Error', description: 'Failed to submit request. Please try again.', variant: 'destructive' });
         } finally {
             setIsSubmitting(false);
         }
     };
+    
 
     const handleEditSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -258,12 +256,21 @@ export default function ReimbursementClient() {
     
     const canDelete = (req: ReimbursementRequest) => {
         if (!user) return false;
-        if (req.status === 'approved') return false; // Nobody can delete an approved request.
-        if ((user as User)?.isAdmin) return true; // Admins can delete pending/rejected requests.
-        if (user.uid === req.roommateId && req.status === 'pending') return true; // Users can delete their own pending requests.
+        if ((user as User)?.isAdmin) {
+          return req.status !== 'approved';
+        }
+        if (user.uid === req.roommateId) {
+          return req.status === 'pending';
+        }
         return false;
+      };
+
+    const canEdit = (req: ReimbursementRequest) => {
+        if (!user) return false;
+        return user.uid === req.roommateId && req.status === 'pending';
     }
-        return (
+    
+    return (
         <div className="grid gap-4 lg:grid-cols-7">
             <Card className="lg:col-span-3">
                 <CardHeader>
@@ -300,11 +307,27 @@ export default function ReimbursementClient() {
                         <Label htmlFor="payment" className="text-sm font-medium">Payment Screenshot</Label>
                         <Input 
                             id="payment" 
+                            ref={fileInputRef}
                             type="file" 
                             accept="image/*" 
-                            onChange={e => setPaymentFile(e.target.files?.[0] || null)} 
+                            onChange={handleFileChange}
                             className="h-11 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
                         />
+                         {paymentFile && (
+                            <div className="flex items-center justify-between p-2 mt-2 text-sm rounded-md border border-muted bg-muted/50">
+                                <span className="truncate pr-2">{paymentFile.name}</span>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={clearFileSelection}
+                                    className="h-6 w-6"
+                                >
+                                    <XIcon className="h-4 w-4" />
+                                    <span className="sr-only">Remove file</span>
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 </CardContent>
                 <CardFooter>
@@ -340,7 +363,7 @@ export default function ReimbursementClient() {
                                     <TableBody>
                                         {isLoading ? (
                                             <TableRow>
-                                                <TableCell colSpan={3} className="h-24 text-center">
+                                                <TableCell colSpan={3}>
                                                     <Skeleton className="h-8 w-full" />
                                                 </TableCell>
                                             </TableRow>
@@ -482,14 +505,15 @@ export default function ReimbursementClient() {
                                                         <p className="text-sm text-muted-foreground mt-1">{formatINR(req.amount)}</p>
                                                     </div>
                                                     {req.paymentUrl && (
-                                                        <div className="col-span-2">
+                                                        <div>
                                                             <Label className="font-semibold">Payment Screenshot</Label>
-                                                            <div className="mt-2 relative h-96">
+                                                            <div className="mt-2 relative">
                                                                 <Image 
                                                                     src={req.paymentUrl} 
                                                                     alt="Payment" 
-                                                                    layout="fill"
-                                                                    className="rounded-md object-contain" 
+                                                                    width={300} 
+                                                                    height={400} 
+                                                                    className="rounded-md object-contain mx-auto" 
                                                                 />
                                                             </div>
                                                         </div>
@@ -507,7 +531,7 @@ export default function ReimbursementClient() {
                                                 </div>
                                             </DialogContent>
                                         </Dialog>
-                                        {user?.uid === req.roommateId && req.status === 'pending' && (
+                                        {canEdit(req) && (
                                             <Dialog open={editingRequest?.id === req.id} onOpenChange={(isOpen) => !isOpen && setEditingRequest(null)}>
                                                 <DialogTrigger asChild>
                                                     <Button variant="outline" size="icon" onClick={() => setEditingRequest(req)}>
@@ -576,5 +600,3 @@ export default function ReimbursementClient() {
         </div>
     );
 }
-
-    
