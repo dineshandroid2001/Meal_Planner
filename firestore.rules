@@ -121,9 +121,9 @@ service cloud.firestore {
       allow create: if isRoommate(request.resource.data.roommateId);
       allow update: if (isRoommate(resource.data.roommateId) && resource.data.status == 'pending') || userIsAdmin();
       
-      // A user can delete their own request only if it's pending or rejected.
-      // An admin can delete any request as long as it's not approved.
-      allow delete: if (isRoommate(resource.data.roommateId) && (resource.data.status == 'pending' || resource.data.status == 'rejected')) || (userIsAdmin() && resource.data.status != 'approved');
+      // An owner can delete their own request if it's not approved.
+      // An admin can also delete any request that's not approved.
+      allow delete: if (isRoommate(resource.data.roommateId) && resource.data.status != 'approved') || (userIsAdmin() && resource.data.status != 'approved');
     }
 
     /**
