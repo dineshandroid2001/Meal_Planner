@@ -1,10 +1,12 @@
+
 'use client';
 
-import { GoogleAuthProvider, signInWithPopup, UserCredential } from 'firebase/auth';
+import { GoogleAuthProvider, signInWithPopup, UserCredential, signOut } from 'firebase/auth';
 import { doc, getDoc } from 'firebase/firestore';
 import { Auth } from 'firebase/auth';
 import { Firestore } from 'firebase/firestore';
 import { setDocumentNonBlocking } from '@/firebase';
+import { allowedEmails } from '@/lib/allowed-emails';
 
 export const googleProvider = new GoogleAuthProvider();
 
@@ -12,10 +14,23 @@ export const googleProvider = new GoogleAuthProvider();
 googleProvider.addScope('email');
 googleProvider.addScope('profile');
 
+const isEmailAllowed = (email: string | null) => {
+  if (allowedEmails.length === 0) return true; // If list is empty, allow all
+  if (!email) return false;
+  return allowedEmails.includes(email.toLowerCase());
+};
+
 export const signInWithGoogle = async (auth: Auth, firestore: Firestore): Promise<UserCredential> => {
   try {
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
+
+    // Check if the signed-in user's email is on the whitelist
+    if (!isEmailAllowed(user.email)) {
+      // If not allowed, immediately sign them out and throw an error
+      await signOut(auth);
+      throw new Error("This email address is not authorized to use this application.");
+    }
 
     // Check if user profile exists in Firestore
     const userDocRef = doc(firestore, 'roommates', user.uid);

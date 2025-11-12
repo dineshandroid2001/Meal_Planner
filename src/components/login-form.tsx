@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Eye, EyeOff } from 'lucide-react';
 import GoogleSignInButton from '@/components/google-signin-button';
+import { allowedEmails } from '@/lib/allowed-emails';
 
 export default function LoginForm() {
   const router = useRouter();
@@ -28,6 +29,11 @@ export default function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [authAction, setAuthAction] = useState<'signIn' | 'signUp' | null>(null);
 
+  const isEmailAllowed = (email: string) => {
+    if (allowedEmails.length === 0) return true; // If list is empty, allow all
+    return allowedEmails.includes(email.toLowerCase());
+  };
+
   const handleAuthAction = async (action: 'signIn' | 'signUp') => {
     if (!email || !password) {
       toast({
@@ -38,6 +44,15 @@ export default function LoginForm() {
       return;
     }
     
+    if (!isEmailAllowed(email)) {
+      toast({
+        title: 'Access Denied',
+        description: 'This email address is not authorized to use this application.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsSubmitting(true);
     setAuthAction(action);
 
@@ -83,8 +98,10 @@ export default function LoginForm() {
       console.error(`Error during ${action}:`, error);
 
       let description = error.message;
-      if (error.code === 'auth/invalid-credential') {
+      if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/wrong-password') {
         description = 'Invalid email or password. Please try again.';
+      } else if (error.code === 'auth/email-already-in-use') {
+        description = 'This email address is already registered. Please sign in.';
       }
       
       toast({
