@@ -31,7 +31,7 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Skeleton } from '@/components/ui/skeleton';
-import { CheckCircle, Trash2, Edit, XIcon } from 'lucide-react';
+import { CheckCircle, Trash2, Edit, X as XIcon } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -154,16 +154,17 @@ export default function ReimbursementClient() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!user || !description || !amount || !firestore || !storage) {
+        if (!user || !description || !amount || !firestore) {
             toast({ title: 'Missing fields or services unavailable', description: 'Please fill out all fields.', variant: 'destructive' });
             return;
         }
 
         setIsSubmitting(true);
-        let paymentUrl: string | undefined = undefined;
 
         try {
-            if (paymentFile) {
+            let paymentUrl: string | undefined = undefined;
+
+            if (paymentFile && storage) {
                 toast({ title: 'Uploading...', description: 'Your receipt is being uploaded.' });
                 const paymentScreenshotDataUri = await fileToDataUri(paymentFile);
                 const paymentRef = ref(storage, `reimbursements/${user.uid}/${Date.now()}_${paymentFile.name}`);
@@ -181,13 +182,16 @@ export default function ReimbursementClient() {
                 description,
                 status: 'pending',
                 submittedAt: new Date(),
-                paymentUrl: paymentUrl,
             };
 
+            if (paymentUrl) {
+                newRequest.paymentUrl = paymentUrl;
+            }
+
             await addDocumentNonBlocking(collection(firestore, 'reimbursements'), newRequest);
-            
+
             toast({ title: 'Success!', description: 'Your reimbursement request has been submitted.' });
-            
+
             // Reset form
             setDescription('');
             setAmount('');
@@ -200,7 +204,6 @@ export default function ReimbursementClient() {
             setIsSubmitting(false);
         }
     };
-    
 
     const handleEditSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -600,8 +603,3 @@ export default function ReimbursementClient() {
         </div>
     );
 }
-    
-
-    
-
-    
