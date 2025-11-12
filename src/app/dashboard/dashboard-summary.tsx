@@ -9,6 +9,8 @@ import { doc, collection } from 'firebase/firestore';
 import type { MonthlyPlan, Participant, ReimbursementRequest } from '@/lib/types';
 import { Skeleton } from '@/components/ui/skeleton';
 
+const MAINTENANCE_COST = 100;
+
 export default function DashboardSummary() {
     const firestore = useFirestore();
     const today = new Date();
@@ -47,34 +49,18 @@ export default function DashboardSummary() {
         if (!participantsData || !monthlyPlan || !allRoommates) return 0;
         const costPerDay = (monthlyPlan.monthlyExpense || 0) / 30;
         
-        // Create a Set of valid roommate IDs for fast lookup
         const validRoommateIds = new Set(allRoommates.map(r => r.id));
         
-        console.log('=== Total Collected Amount Calculation ===');
-        console.log('Monthly Expense:', monthlyPlan.monthlyExpense);
-        console.log('Cost Per Day:', costPerDay);
-        console.log('Valid Roommate IDs:', Array.from(validRoommateIds));
-        console.log('Number of participants:', participantsData.length);
-        
-        // Only count participants who are in the roommates collection
-        const total = participantsData
-            .filter(p => {
-                const isValid = p.id && validRoommateIds.has(p.id) && p.days !== undefined && p.days !== null;
-                if (p.id && !validRoommateIds.has(p.id)) {
-                    console.log(`⚠️ Skipping participant ${p.id}: Not in roommates collection`);
-                }
-                return isValid;
-            })
+        return participantsData
+            .filter(p => p.id && validRoommateIds.has(p.id) && p.days !== undefined && p.days !== null)
             .reduce((acc, p) => {
+                if (p.days === 0) {
+                    return acc + MAINTENANCE_COST;
+                }
                 const cost = p.days * costPerDay;
-                console.log(`✓ Participant ${p.id}: ${p.days} days × Rs ${costPerDay.toFixed(2)} = Rs ${cost.toFixed(2)}`);
                 return acc + cost;
             }, 0);
             
-        console.log('Total Collected:', total);
-        console.log('===========================================');
-        
-        return total;
     }, [participantsData, monthlyPlan, allRoommates]);
 
     const balance = useMemo(() => {
