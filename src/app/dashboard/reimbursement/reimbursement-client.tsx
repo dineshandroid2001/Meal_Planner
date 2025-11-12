@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,7 +31,7 @@ import {
   DialogFooter
 } from "@/components/ui/dialog";
 import { Skeleton } from '@/components/ui/skeleton';
-import { CheckCircle, Trash2, Edit } from 'lucide-react';
+import { CheckCircle, Trash2, Edit, XIcon } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -55,6 +55,7 @@ export default function ReimbursementClient() {
     const [description, setDescription] = useState('');
     const [amount, setAmount] = useState('');
     const [paymentFile, setPaymentFile] = useState<File | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [editingRequest, setEditingRequest] = useState<(ReimbursementRequest & { id: string }) | null>(null);
     const [editDescription, setEditDescription] = useState('');
@@ -137,7 +138,19 @@ export default function ReimbursementClient() {
           reader.onerror = reject;
           reader.readAsDataURL(file);
         });
-      };
+    };
+
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] || null;
+        setPaymentFile(file);
+    };
+
+    const clearFileSelection = () => {
+        setPaymentFile(null);
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -145,10 +158,10 @@ export default function ReimbursementClient() {
             toast({ title: 'Missing fields or services unavailable', description: 'Please fill out all fields.', variant: 'destructive' });
             return;
         }
-    
+
         setIsSubmitting(true);
         let paymentUrl: string | undefined = undefined;
-    
+
         try {
             if (paymentFile) {
                 toast({ title: 'Uploading...', description: 'Your receipt is being uploaded.' });
@@ -158,9 +171,9 @@ export default function ReimbursementClient() {
                 paymentUrl = await getDownloadURL(paymentRef);
                 toast({ title: 'Upload Complete', description: 'Your receipt has been uploaded successfully.' });
             }
-    
+
             toast({ title: 'Submitting...', description: 'Saving your reimbursement request.' });
-    
+
             const newRequest: Partial<ReimbursementRequest> = {
                 roommateId: user.uid,
                 userName: (user as User).name || user.displayName || 'Unknown',
@@ -170,7 +183,7 @@ export default function ReimbursementClient() {
                 submittedAt: new Date(),
                 paymentUrl: paymentUrl,
             };
-    
+
             await addDocumentNonBlocking(collection(firestore, 'reimbursements'), newRequest);
             
             toast({ title: 'Success!', description: 'Your reimbursement request has been submitted.' });
@@ -178,12 +191,8 @@ export default function ReimbursementClient() {
             // Reset form
             setDescription('');
             setAmount('');
-            setPaymentFile(null);
-            const form = document.getElementById('reimbursement-form') as HTMLFormElement;
-            if (form) {
-                form.reset();
-            }
-    
+            clearFileSelection();
+
         } catch (error) {
             console.error("Submission error:", error);
             toast({ title: 'Error', description: 'Failed to submit request. Please try again.', variant: 'destructive' });
@@ -298,11 +307,27 @@ export default function ReimbursementClient() {
                         <Label htmlFor="payment" className="text-sm font-medium">Payment Screenshot</Label>
                         <Input 
                             id="payment" 
+                            ref={fileInputRef}
                             type="file" 
                             accept="image/*" 
-                            onChange={e => setPaymentFile(e.target.files?.[0] || null)} 
+                            onChange={handleFileChange}
                             className="h-11 file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
                         />
+                         {paymentFile && (
+                            <div className="flex items-center justify-between p-2 mt-2 text-sm rounded-md border border-muted bg-muted/50">
+                                <span className="truncate pr-2">{paymentFile.name}</span>
+                                <Button
+                                    type="button"
+                                    variant="ghost"
+                                    size="icon"
+                                    onClick={clearFileSelection}
+                                    className="h-6 w-6"
+                                >
+                                    <XIcon className="h-4 w-4" />
+                                    <span className="sr-only">Remove file</span>
+                                </Button>
+                            </div>
+                        )}
                     </div>
                 </CardContent>
                 <CardFooter>
@@ -575,6 +600,8 @@ export default function ReimbursementClient() {
         </div>
     );
 }
+    
+
     
 
     
