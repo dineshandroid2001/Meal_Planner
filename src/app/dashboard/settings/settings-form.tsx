@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from 'react';
-import type { MonthlyPlan, User } from '@/lib/types';
+import type { MonthlyPlan, User, ReimbursementRequest } from '@/lib/types';
 import { useUser, useFirestore, setDocumentNonBlocking, useDoc, useMemoFirebase, useCollection, deleteDocumentNonBlocking } from '@/firebase';
 import { useToast } from '@/hooks/use-toast';
 import { useRouter } from 'next/navigation';
@@ -42,6 +42,14 @@ export default function SettingsForm() {
     
     const roommatesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, 'roommates') : null, [firestore]);
     const { data: allRoommates, isLoading: areRoommatesLoading } = useCollection<User & {id: string}>(roommatesCollectionRef);
+
+    const reimbursementsQuery = useMemoFirebase(() => firestore ? query(collection(firestore, "reimbursements")) : null, [firestore]);
+    const { data: reimbursements, isLoading: areReimbursementsLoading } = useCollection<ReimbursementRequest>(reimbursementsQuery);
+
+    const hasPendingReimbursements = useMemo(() => {
+        if (!reimbursements) return false;
+        return reimbursements.some(r => r.status === 'pending');
+    }, [reimbursements]);
 
     const nonAdminRoommates = useMemo(() => {
         if (!allRoommates || !user) return [];
@@ -129,20 +137,25 @@ export default function SettingsForm() {
             return;
         }
 
+        if (hasPendingReimbursements) {
+            toast({ title: "Action Blocked", description: "Please resolve all pending reimbursements before resetting.", variant: "destructive" });
+            return;
+        }
+
         setIsSubmitting(true);
         toast({ title: "Resetting...", description: "Please wait while the data is being reset." });
 
         try {
             // 1. Delete all reimbursements
-            const reimbursementsQuery = query(collection(firestore, 'reimbursements'));
-            const reimbursementsSnapshot = await getDocs(reimbursementsQuery);
+            const reimbursementsQueryRef = query(collection(firestore, 'reimbursements'));
+            const reimbursementsSnapshot = await getDocs(reimbursementsQueryRef);
             reimbursementsSnapshot.forEach(doc => {
                 deleteDocumentNonBlocking(doc.ref);
             });
 
             // 2. Reset all participations for the current month
-            const participationsQuery = query(collection(firestore, `monthlyPlans/${monthId}/participations`));
-            const participationsSnapshot = await getDocs(participationsQuery);
+            const participationsQueryRef = query(collection(firestore, `monthlyPlans/${monthId}/participations`));
+            const participationsSnapshot = await getDocs(participationsQueryRef);
             participationsSnapshot.forEach(doc => {
                 setDocumentNonBlocking(doc.ref, { days: 0, isPaid: false }, { merge: true });
             });
@@ -157,7 +170,7 @@ export default function SettingsForm() {
         }
     };
     
-    const isLoading = isPlanLoading || areRoommatesLoading;
+    const isLoading = isPlanLoading || areRoommatesLoading || areReimbursementsLoading;
 
     if (isLoading) {
         return <Skeleton className="h-48 w-full" />;
@@ -252,7 +265,7 @@ export default function SettingsForm() {
                     <AlertDialogTrigger asChild>
                         <Button
                             variant="destructive"
-                            disabled={isSubmitting}
+                            disabled={isSubmitting || hasPendingReimbursements}
                             className="w-full h-11"
                         >
                             {isSubmitting ? 'Resetting...' : 'Reset All Month Data'}
@@ -273,7 +286,14 @@ export default function SettingsForm() {
                         </AlertDialogFooter>
                     </AlertDialogContent>
                 </AlertDialog>
+                {hasPendingReimbursements && (
+                    <p className="text-sm text-destructive font-medium">
+                        You cannot reset the month because there are pending reimbursement requests. Please approve or reject them first.
+                    </p>
+                )}
             </div>
         </div>
     );
 }
+
+    
