@@ -51,7 +51,7 @@ service cloud.firestore {
       allow write: if isOwner() || userIsAdmin();
       
       // Allow owners to delete their own profile.
-      allow delete: if isOwner();
+      allow delete: if isOwner() || userIsAdmin();
     }
 
     /**
