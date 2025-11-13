@@ -73,11 +73,9 @@ export default function DashboardSummary() {
     if (isLoading) {
         return (
             <div className="grid gap-3 grid-cols-1 sm:grid-cols-2 xl:grid-cols-5">
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
-                <Skeleton className="h-32 w-full" />
+                {[...Array(5)].map((_, i) => (
+                    <Skeleton key={i} className="h-32 w-full" />
+                ))}
             </div>
         )
     }

@@ -5,6 +5,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import type { Participant, MonthlyPlan, User } from '@/lib/types';
 import { formatINR } from '@/lib/utils';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { format } from 'date-fns';
@@ -27,6 +28,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { useIsMobile } from '@/hooks/use-mobile';
+import { Label } from '@/components/ui/label';
 
 const dayOptions = [0, 10, 15, 20, 30];
 const MAINTENANCE_COST = 100;
@@ -37,6 +40,7 @@ function MembersList() {
     const { toast } = useToast();
     const [participants, setParticipants] = useState<Participant[]>([]);
     const [isLoading, setIsLoading] = useState(true);
+    const isMobile = useIsMobile();
 
     const today = new Date();
     const monthId = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
@@ -174,7 +178,7 @@ function MembersList() {
         return (
             <div className="space-y-4">
                 {[...Array(3)].map((_, i) => (
-                    <div key={i} className="flex items-center space-x-4">
+                    <div key={i} className="flex items-center space-x-4 p-2">
                         <Skeleton className="h-12 w-12 rounded-full" />
                         <div className="space-y-2">
                             <Skeleton className="h-4 w-[250px]" />
@@ -191,6 +195,113 @@ function MembersList() {
         // Any user (admin or not) can only edit their own days.
         return user.uid === participantId;
     };
+    
+    const renderLastUpdated = (p: Participant) => {
+        if (p.days <= 0 || !p.lastUpdatedAt) return null;
+        
+        let formattedDate: string;
+        try {
+            if (p.lastUpdatedAt instanceof Date) formattedDate = format(p.lastUpdatedAt, 'PPp');
+            else if (typeof p.lastUpdatedAt === 'object' && p.lastUpdatedAt && 'toDate' in p.lastUpdatedAt) {
+                formattedDate = format(p.lastUpdatedAt.toDate(), 'PPp');
+            } else {
+                formattedDate = format(new Date(p.lastUpdatedAt as string), 'PPp');
+            }
+        } catch {
+            return null; // Invalid date
+        }
+        
+        return (
+             <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                {formattedDate}
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <Info className="h-3 w-3" />
+                    </TooltipTrigger>
+                    <TooltipContent>
+                        <p>Updated by: {p.lastUpdatedBy}</p>
+                    </TooltipContent>
+                </Tooltip>
+            </div>
+        )
+    };
+
+    if (isMobile) {
+        return (
+            <TooltipProvider>
+                <div className="grid gap-4">
+                    {participants.map(p => (
+                        <Card key={p.id} className="w-full">
+                            <CardHeader className="flex flex-row items-start justify-between gap-4 p-4">
+                                <div className="flex items-center gap-3">
+                                    <Avatar className="h-10 w-10">
+                                        <AvatarImage src={p.photoURL ?? ''} alt={p.name ?? ''} />
+                                        <AvatarFallback>{getInitials(p.name)}</AvatarFallback>
+                                    </Avatar>
+                                    <div>
+                                        <div className="font-medium">{p.name}</div>
+                                        {p.isAdmin && <Badge>Admin</Badge>}
+                                    </div>
+                                </div>
+                                {(user as User)?.isAdmin && user?.uid !== p.id && (
+                                    <AlertDialog>
+                                        <AlertDialogTrigger asChild>
+                                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </AlertDialogTrigger>
+                                        <AlertDialogContent>
+                                            <AlertDialogHeader><AlertDialogTitle>Are you sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete {p.name}'s account and data.</AlertDialogDescription></AlertDialogHeader>
+                                            <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteMember(p.id)}>Delete</AlertDialogAction></AlertDialogFooter>
+                                        </AlertDialogContent>
+                                    </AlertDialog>
+                                )}
+                            </CardHeader>
+                            <CardContent className="grid gap-4 p-4 pt-0">
+                                <div className="grid gap-2">
+                                    <Label htmlFor={`days-select-mob-${p.id}`} className="text-xs">Participation</Label>
+                                    <Select
+                                        value={String(p.days)}
+                                        onValueChange={(value) => handleDaysChange(p.id, value)}
+                                        disabled={!canEditDays(p.id)}
+                                        aria-labelledby={`days-select-mob-${p.id}`}
+                                    >
+                                        <SelectTrigger><SelectValue/></SelectTrigger>
+                                        <SelectContent>
+                                            {dayOptions.map(day => (
+                                                <SelectItem key={day} value={String(day)}>{day === 30 ? 'Full Month' : `${day} days`}</SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {renderLastUpdated(p)}
+                                </div>
+                                <div className="flex items-center justify-between">
+                                    <div className="text-sm text-muted-foreground">Cost</div>
+                                    <div className="font-semibold">{formatINR(p.cost)}</div>
+                                </div>
+                            </CardContent>
+                            <CardFooter className="p-4">
+                                {p.isPaid ? (
+                                    <Badge variant="default" className="w-full justify-center gap-1.5 py-2 text-sm"><CheckCircle className="h-4 w-4" /> Paid</Badge>
+                                ) : (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="w-full h-10"
+                                        onClick={() => handleMarkAsPaid(p.id)}
+                                        disabled={!(user as User)?.isAdmin}
+                                    >
+                                        Mark as Paid
+                                    </Button>
+                                )}
+                            </CardFooter>
+                        </Card>
+                    ))}
+                </div>
+            </TooltipProvider>
+        );
+    }
+    
 
     return (
         <>
@@ -257,25 +368,7 @@ function MembersList() {
                                     )}
                                 </TableCell>
                                 <TableCell className="hidden md:table-cell">
-                                    {p.days > 0 && p.lastUpdatedAt && (
-                                    <div className="flex items-center gap-2">
-                                        {(() => {
-                                            if (p.lastUpdatedAt instanceof Date) return format(p.lastUpdatedAt, 'PPp');
-                                            if (typeof p.lastUpdatedAt === 'object' && p.lastUpdatedAt && 'toDate' in p.lastUpdatedAt) {
-                                                return format(p.lastUpdatedAt.toDate(), 'PPp');
-                                            }
-                                            return format(new Date(p.lastUpdatedAt as string), 'PPp');
-                                        })()}
-                                        <Tooltip>
-                                            <TooltipTrigger asChild>
-                                                <Info className="h-4 w-4 text-muted-foreground" />
-                                            </TooltipTrigger>
-                                            <TooltipContent>
-                                                <p>Updated by: {p.lastUpdatedBy}</p>
-                                            </TooltipContent>
-                                        </Tooltip>
-                                    </div>
-                                    )}
+                                    {renderLastUpdated(p)}
                                 </TableCell>
                                 <TableCell className="text-right">
                                     <div className="flex items-center justify-end gap-2">
