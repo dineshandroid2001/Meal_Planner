@@ -149,22 +149,6 @@ function MembersList() {
     };
 
 
-    const handleDeleteMember = (participantId: string) => {
-        if (!firestore || !(user as User)?.isAdmin) {
-            toast({ title: "Permission Denied", description: "You are not authorized to delete members.", variant: "destructive" });
-            return;
-        }
-        
-        const roommateDocRef = doc(firestore, 'roommates', participantId);
-        const participationDocRef = doc(firestore, `monthlyPlans/${monthId}/participations`, participantId);
-
-        // Non-blocking deletions
-        deleteDocumentNonBlocking(roommateDocRef);
-        deleteDocumentNonBlocking(participationDocRef);
-
-        toast({ title: "Member Deleted", description: "The member has been removed." });
-    };
-
     const getInitials = (name: string | null | undefined) => {
         if (!name) return "U";
         const names = name.split(' ');
@@ -301,7 +285,6 @@ function MembersList() {
                             <TableHead>Calculated Cost</TableHead>
                             <TableHead>Payment Status</TableHead>
                             <TableHead className="hidden md:table-cell">Last Updated</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -356,11 +339,6 @@ function MembersList() {
                                 </TableCell>
                                 <TableCell className="hidden md:table-cell">
                                     {renderLastUpdated(p)}
-                                </TableCell>
-                                <TableCell className="text-right">
-                                    <div className="flex items-center justify-end gap-2">
-                                        {/* Delete button removed as requested */}
-                                    </div>
                                 </TableCell>
                             </TableRow>
                         ))}
