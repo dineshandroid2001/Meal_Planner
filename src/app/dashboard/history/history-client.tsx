@@ -40,6 +40,8 @@ import {
 import { Label } from '@/components/ui/label';
 import { useIsMobile } from '@/hooks/use-mobile';
 
+type RequestWithId = ReimbursementRequest & { id: string };
+
 export default function HistoryPageClient() {
     const { user } = useUser();
     const firestore = useFirestore();
@@ -47,13 +49,14 @@ export default function HistoryPageClient() {
     const isMobile = useIsMobile();
     
     const [filters, setFilters] = useState<FilterState>(createDefaultFilters());
+    const [viewingRequest, setViewingRequest] = useState<RequestWithId | null>(null);
 
     const reimbursementsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         return query(collection(firestore, "reimbursements"), orderBy("submittedAt", "desc"));
     }, [firestore]);
 
-    const { data: reimbursements, isLoading: isLoadingReimbursements } = useCollection<ReimbursementRequest & { id: string }>(reimbursementsQuery);
+    const { data: reimbursements, isLoading: isLoadingReimbursements } = useCollection<RequestWithId>(reimbursementsQuery);
     
     const roommatesCollectionRef = useMemoFirebase(() => firestore ? collection(firestore, 'roommates') : null, [firestore]);
     const { data: allRoommates, isLoading: areRoommatesLoading } = useCollection<User & {id: string}>(roommatesCollectionRef);
@@ -118,7 +121,7 @@ export default function HistoryPageClient() {
             const requestRef = doc(firestore, 'reimbursements', requestId);
             await deleteDocumentNonBlocking(requestRef);
             toast({ title: 'Deleted', description: 'The reimbursement request has been deleted.' });
-        } catch (error) {
+        } catch (error) => {
             toast({ title: 'Error', description: 'Failed to delete request.', variant: 'destructive' });
         }
     };
@@ -135,14 +138,7 @@ export default function HistoryPageClient() {
         }
         return 'Invalid date';
     };
-
-    const formatDialogDate = (timestamp: any) => {
-        if (timestamp && typeof timestamp.toDate === 'function') {
-            return format(timestamp.toDate(), 'PPp');
-        }
-        return 'Invalid date';
-    };
-
+    
     const isLoading = isLoadingReimbursements || areRoommatesLoading;
 
     return (
@@ -290,10 +286,7 @@ export default function HistoryPageClient() {
                                                 <p className="text-sm text-muted-foreground truncate" title={req.description}>{req.description}</p>
                                             </CardContent>
                                             <CardFooter className="p-4 flex gap-2">
-                                                <Dialog>
-                                                    <DialogTrigger asChild><Button variant="outline" size="sm" className="flex-1">View</Button></DialogTrigger>
-                                                    <DialogContentForRequest req={req} />
-                                                </Dialog>
+                                                <Button variant="outline" size="sm" className="flex-1" onClick={() => setViewingRequest(req)}>View</Button>
                                                 {canDelete(req) && (
                                                     <AlertDialog>
                                                         <AlertDialogTrigger asChild><Button variant="destructive" size="icon"><Trash2 className="h-4 w-4"/></Button></AlertDialogTrigger>
@@ -343,10 +336,7 @@ export default function HistoryPageClient() {
                                                 </TableCell>
                                                 <TableCell className="text-right">
                                                     <div className="flex items-center justify-end gap-2">
-                                                        <Dialog>
-                                                            <DialogTrigger asChild><Button variant="outline" size="sm">View</Button></DialogTrigger>
-                                                            <DialogContentForRequest req={req} />
-                                                        </Dialog>
+                                                        <Button variant="outline" size="sm" onClick={() => setViewingRequest(req)}>View</Button>
                                                         {canDelete(req) && (
                                                              <AlertDialog>
                                                                 <AlertDialogTrigger asChild>
@@ -378,10 +368,22 @@ export default function HistoryPageClient() {
                     </CardContent>
                 </Card>
             </div>
+            {viewingRequest && (
+                <Dialog open={!!viewingRequest} onOpenChange={(isOpen) => !isOpen && setViewingRequest(null)}>
+                    <DialogContentForRequest req={viewingRequest} />
+                </Dialog>
+            )}
         </div>
     );
     
-    function DialogContentForRequest({ req }: { req: ReimbursementRequest & { id: string } }) {
+    function DialogContentForRequest({ req }: { req: RequestWithId }) {
+        const formatDialogDate = (timestamp: any) => {
+            if (timestamp && typeof timestamp.toDate === 'function') {
+                return format(timestamp.toDate(), 'PPp');
+            }
+            return 'Invalid date';
+        };
+
         return (
             <DialogContent className="sm:max-w-[600px]">
                 <DialogHeader>
@@ -415,23 +417,25 @@ export default function HistoryPageClient() {
                     )}
                     {(user as User)?.isAdmin && req.status === 'pending' && (
                         <DialogFooter className="gap-2 flex-col sm:flex-row pt-4">
-                            <DialogClose asChild>
-                                <Button
-                                    variant="destructive"
-                                    size="sm"
-                                    onClick={() => handleStatusChange(req.id, 'rejected')}
-                                >
-                                    Reject
-                                </Button>
-                            </DialogClose>
-                            <DialogClose asChild>
-                                <Button
-                                    size="sm"
-                                    onClick={() => handleStatusChange(req.id, 'approved')}
-                                >
-                                    Approve
-                                </Button>
-                            </DialogClose>
+                             <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => {
+                                    handleStatusChange(req.id, 'rejected');
+                                    setViewingRequest(null);
+                                }}
+                            >
+                                Reject
+                            </Button>
+                            <Button
+                                size="sm"
+                                onClick={() => {
+                                    handleStatusChange(req.id, 'approved');
+                                    setViewingRequest(null);
+                                }}
+                            >
+                                Approve
+                            </Button>
                         </DialogFooter>
                     )}
                 </div>
@@ -439,5 +443,3 @@ export default function HistoryPageClient() {
         );
     }
 }
-
-    
