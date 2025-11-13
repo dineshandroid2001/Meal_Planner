@@ -522,7 +522,7 @@ export default function ReimbursementClient() {
                                                         </div>
                                                     )}
                                                     {(user as User)?.isAdmin && req.status === 'pending' && (
-                                                         <DialogFooter>
+                                                         <DialogFooter className="gap-2">
                                                              <DialogClose asChild>
                                                                 <Button variant="destructive" size="sm" onClick={() => handleStatusChange(req.id, 'rejected')}>Reject</Button>
                                                              </DialogClose>
@@ -603,3 +603,5 @@ export default function ReimbursementClient() {
         </div>
     );
 }
+
+    
