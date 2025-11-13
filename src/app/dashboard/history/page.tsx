@@ -1,5 +1,7 @@
-// import HistoryPageClient from "./history-client";
+import HistoryPageClient from "./history-client";
 
-// export default function HistoryPage() {
-//     return <HistoryPageClient />;
-// }
+export default function HistoryPage() {
+    return <HistoryPageClient />;
+}
+
+    
