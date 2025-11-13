@@ -31,7 +31,7 @@ export default function SettingsForm() {
     const firestore = useFirestore();
     const router = useRouter();
     const { toast } = useToast();
-    const [expense, setExpense] = useState(0);
+    const [expense, setExpense] = useState<string | number>(0);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [newAdminId, setNewAdminId] = useState<string | null>(null);
 
@@ -76,11 +76,13 @@ export default function SettingsForm() {
         setIsSubmitting(true);
         try {
             const planDocRef = doc(firestore, 'monthlyPlans', monthId);
+            
+            const expenseValue = typeof expense === 'string' ? parseFloat(expense) : expense;
 
             const newPlanData = {
                 id: monthId,
                 adminId: user.uid,
-                monthlyExpense: expense,
+                monthlyExpense: isNaN(expenseValue) ? 0 : expenseValue,
                 lastUpdatedAt: new Date(),
                 lastUpdatedBy: user.displayName || user.email || 'Unknown User',
             };
@@ -191,7 +193,7 @@ export default function SettingsForm() {
                     step="0.01"
                     className="w-full h-11"
                     value={expense}
-                    onChange={(e) => setExpense(Number(e.target.value))}
+                    onChange={(e) => setExpense(e.target.value)}
                     placeholder="Enter monthly expense amount"
                 />
                 <p className="text-sm text-muted-foreground">
