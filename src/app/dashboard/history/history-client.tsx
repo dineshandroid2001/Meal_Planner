@@ -121,7 +121,7 @@ export default function HistoryPageClient() {
             const requestRef = doc(firestore, 'reimbursements', requestId);
             await deleteDocumentNonBlocking(requestRef);
             toast({ title: 'Deleted', description: 'The reimbursement request has been deleted.' });
-        } catch (error) => {
+        } catch (error) {
             toast({ title: 'Error', description: 'Failed to delete request.', variant: 'destructive' });
         }
     };
