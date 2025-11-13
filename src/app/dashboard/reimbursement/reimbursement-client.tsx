@@ -59,6 +59,7 @@ export default function ReimbursementClient() {
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     const [editingRequest, setEditingRequest] = useState<(ReimbursementRequest & { id: string }) | null>(null);
+    const [viewingRequest, setViewingRequest] = useState<(ReimbursementRequest & { id: string }) | null>(null);
     const [editDescription, setEditDescription] = useState('');
     const [editAmount, setEditAmount] = useState('');
     
@@ -481,15 +482,11 @@ export default function ReimbursementClient() {
                                             <p className="text-sm text-muted-foreground truncate">{req.description}</p>
                                         </CardContent>
                                         <CardFooter className="p-4 flex gap-2">
-                                            <Dialog>
-                                                <DialogTrigger asChild><Button variant="outline" size="sm" className="flex-1">View</Button></DialogTrigger>
-                                                {/* DialogContent shared below */}
-                                            </Dialog>
+                                            <Button variant="outline" size="sm" className="flex-1" onClick={() => setViewingRequest(req)}>View</Button>
                                             {canEdit(req) && (
-                                                <Dialog open={editingRequest?.id === req.id} onOpenChange={(isOpen) => !isOpen && setEditingRequest(null)}>
-                                                    <DialogTrigger asChild><Button variant="outline" size="icon"><Edit className="h-4 w-4" /></Button></DialogTrigger>
-                                                    {/* DialogContent shared below */}
-                                                </Dialog>
+                                                <Button variant="outline" size="icon" onClick={() => setEditingRequest(req)}>
+                                                    <Edit className="h-4 w-4" />
+                                                </Button>
                                             )}
                                             {canDelete(req) && (
                                                 <AlertDialog>
@@ -533,22 +530,12 @@ export default function ReimbursementClient() {
                                                 </Badge>
                                             </TableCell>
                                             <TableCell className="text-right flex items-center justify-end gap-2">
-                                            <Dialog>
-                                                <DialogTrigger asChild>
-                                                    <Button variant="outline" size="sm">View</Button>
-                                                </DialogTrigger>
-                                                {/* DialogContent shared below */}
-                                            </Dialog>
+                                            <Button variant="outline" size="sm" onClick={() => setViewingRequest(req)}>View</Button>
                                             {canEdit(req) && (
-                                                <Dialog open={editingRequest?.id === req.id} onOpenChange={(isOpen) => !isOpen && setEditingRequest(null)}>
-                                                    <DialogTrigger asChild>
-                                                        <Button variant="outline" size="icon" onClick={() => setEditingRequest(req)}>
-                                                            <Edit className="h-4 w-4" />
-                                                            <span className="sr-only">Edit</span>
-                                                        </Button>
-                                                    </DialogTrigger>
-                                                    {/* DialogContent shared below */}
-                                                </Dialog>
+                                                <Button variant="outline" size="icon" onClick={() => setEditingRequest(req)}>
+                                                    <Edit className="h-4 w-4" />
+                                                    <span className="sr-only">Edit</span>
+                                                </Button>
                                             )}
                                             {canDelete(req) && (
                                                 <AlertDialog>
@@ -578,88 +565,89 @@ export default function ReimbursementClient() {
                                 </TableBody>
                             </Table>
                         ))}
-
-                        {/* Shared Dialog Content for View */}
-                        {filteredReimbursements.map(req => (
-                            <Dialog key={`view-${req.id}`} onOpenChange={(open) => !open && setEditingRequest(null)}>
-                                <DialogContent className="sm:max-w-[600px]">
-                                    <DialogHeader>
-                                    <DialogTitle>Reimbursement Details</DialogTitle>
-                                    <DialogDescription>
-                                        Submitted by {roommatesMap.get(req.roommateId) || 'Unknown'} on {formatDialogDate(req.submittedAt)}
-                                    </DialogDescription>
-                                    </DialogHeader>
-                                    <div className="grid gap-4 py-4">
-                                        <div>
-                                            <Label className="font-semibold">Description</Label>
-                                            <p className="text-sm text-muted-foreground mt-1">{req.description}</p>
-                                        </div>
-                                        <div>
-                                            <Label className="font-semibold">Amount</Label>
-                                            <p className="text-sm text-muted-foreground mt-1">{formatINR(req.amount)}</p>
-                                        </div>
-                                        {req.paymentUrl && (
-                                            <div>
-                                                <Label className="font-semibold">Payment Screenshot</Label>
-                                                <div className="mt-2 relative">
-                                                    <Image 
-                                                        src={req.paymentUrl} 
-                                                        alt="Payment" 
-                                                        width={300} 
-                                                        height={400} 
-                                                        className="rounded-md object-contain mx-auto" 
-                                                    />
-                                                </div>
-                                            </div>
-                                        )}
-                                        {(user as User)?.isAdmin && req.status === 'pending' && (
-                                             <DialogFooter className="gap-2 flex-col sm:flex-row">
-                                                 <DialogClose asChild>
-                                                    <Button variant="destructive" size="sm" onClick={() => handleStatusChange(req.id, 'rejected')}>Reject</Button>
-                                                 </DialogClose>
-                                                 <DialogClose asChild>
-                                                    <Button size="sm" onClick={() => handleStatusChange(req.id, 'approved')}>Approve</Button>
-                                                 </DialogClose>
-                                             </DialogFooter>
-                                        )}
-                                    </div>
-                                </DialogContent>
-                            </Dialog>
-                        ))}
-                         {/* Shared Dialog Content for Edit */}
-                        {editingRequest && (
-                             <Dialog open={!!editingRequest} onOpenChange={(isOpen) => !isOpen && setEditingRequest(null)}>
-                                <DialogContent>
-                                    <DialogHeader>
-                                        <DialogTitle>Edit Reimbursement</DialogTitle>
-                                        <DialogDescription>
-                                            Update the details of your reimbursement request.
-                                        </DialogDescription>
-                                    </DialogHeader>
-                                    <form onSubmit={handleEditSubmit}>
-                                        <div className="grid gap-4 py-4">
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="edit-description">Description</Label>
-                                                <Textarea id="edit-description" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
-                                            </div>
-                                            <div className="grid gap-2">
-                                                <Label htmlFor="edit-amount">Amount</Label>
-                                                <Input id="edit-amount" type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
-                                            </div>
-                                        </div>
-                                        <DialogFooter>
-                                            <DialogClose asChild>
-                                                <Button type="button" variant="secondary">Cancel</Button>
-                                            </DialogClose>
-                                            <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Save Changes'}</Button>
-                                        </DialogFooter>
-                                    </form>
-                                </DialogContent>
-                             </Dialog>
-                        )}
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Shared Dialog for Viewing */}
+            {viewingRequest && (
+                <Dialog open={!!viewingRequest} onOpenChange={(isOpen) => !isOpen && setViewingRequest(null)}>
+                    <DialogContent className="sm:max-w-[600px]">
+                        <DialogHeader>
+                        <DialogTitle>Reimbursement Details</DialogTitle>
+                        <DialogDescription>
+                            Submitted by {roommatesMap.get(viewingRequest.roommateId) || 'Unknown'} on {formatDialogDate(viewingRequest.submittedAt)}
+                        </DialogDescription>
+                        </DialogHeader>
+                        <div className="grid gap-4 py-4">
+                            <div>
+                                <Label className="font-semibold">Description</Label>
+                                <p className="text-sm text-muted-foreground mt-1">{viewingRequest.description}</p>
+                            </div>
+                            <div>
+                                <Label className="font-semibold">Amount</Label>
+                                <p className="text-sm text-muted-foreground mt-1">{formatINR(viewingRequest.amount)}</p>
+                            </div>
+                            {viewingRequest.paymentUrl && (
+                                <div>
+                                    <Label className="font-semibold">Payment Screenshot</Label>
+                                    <div className="mt-2 relative">
+                                        <Image 
+                                            src={viewingRequest.paymentUrl} 
+                                            alt="Payment" 
+                                            width={300} 
+                                            height={400} 
+                                            className="rounded-md object-contain mx-auto" 
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                            {(user as User)?.isAdmin && viewingRequest.status === 'pending' && (
+                                 <DialogFooter className="gap-2 flex-col sm:flex-row">
+                                     <DialogClose asChild>
+                                        <Button variant="destructive" size="sm" onClick={() => handleStatusChange(viewingRequest.id, 'rejected')}>Reject</Button>
+                                     </DialogClose>
+                                     <DialogClose asChild>
+                                        <Button size="sm" onClick={() => handleStatusChange(viewingRequest.id, 'approved')}>Approve</Button>
+                                     </DialogClose>
+                                 </DialogFooter>
+                            )}
+                        </div>
+                    </DialogContent>
+                </Dialog>
+            )}
+
+            {/* Shared Dialog for Editing */}
+            {editingRequest && (
+                    <Dialog open={!!editingRequest} onOpenChange={(isOpen) => !isOpen && setEditingRequest(null)}>
+                    <DialogContent>
+                        <DialogHeader>
+                            <DialogTitle>Edit Reimbursement</DialogTitle>
+                            <DialogDescription>
+                                Update the details of your reimbursement request.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handleEditSubmit}>
+                            <div className="grid gap-4 py-4">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="edit-description">Description</Label>
+                                    <Textarea id="edit-description" value={editDescription} onChange={(e) => setEditDescription(e.target.value)} />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="edit-amount">Amount</Label>
+                                    <Input id="edit-amount" type="number" value={editAmount} onChange={(e) => setEditAmount(e.target.value)} />
+                                </div>
+                            </div>
+                            <DialogFooter>
+                                <DialogClose asChild>
+                                    <Button type="button" variant="secondary">Cancel</Button>
+                                </DialogClose>
+                                <Button type="submit" disabled={isSubmitting}>{isSubmitting ? 'Saving...' : 'Save Changes'}</Button>
+                            </DialogFooter>
+                        </form>
+                    </DialogContent>
+                    </Dialog>
+            )}
         </div>
     );
 }
