@@ -215,7 +215,7 @@ function MembersList() {
             <TooltipProvider>
                 <div className="grid gap-4">
                     {participants.map(p => (
-                        <Card key={p.id} className="w-full">
+                        <Card key={p.id} className="w-full border border-border">
                             <CardHeader className="flex flex-row items-start justify-between gap-4 p-4">
                                 <div className="flex items-center gap-3">
                                     <Avatar className="h-10 w-10">
@@ -258,7 +258,7 @@ function MembersList() {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        className="w-full h-10"
+                                        className="w-full h-10 bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border-green-200 dark:border-green-800 hover:bg-green-200 dark:hover:bg-green-900/60"
                                         onClick={() => handleMarkAsPaid(p.id)}
                                         disabled={!(user as User)?.isAdmin}
                                     >
@@ -352,3 +352,5 @@ function MembersList() {
 export default function MembersClient() {
     return <MembersList />;
 }
+
+    
